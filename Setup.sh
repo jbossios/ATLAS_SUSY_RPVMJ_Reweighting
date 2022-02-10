@@ -1,4 +1,1 @@
-setupATLAS
-lsetup "asetup Athena,master,latest" # to get Python3.8+
-pip install h5py --user
-pip install torch --user
+source /cvmfs/sft.cern.ch/lcg/views/setupViews.sh LCG_98python3 x86_64-centos7-gcc8-opt # to get Python3.7 with torch
