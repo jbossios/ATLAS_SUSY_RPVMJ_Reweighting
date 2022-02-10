@@ -72,7 +72,29 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, debug: bool =
         plt.show()
       yield np.array(ht_sample_shaped), np.array(flags_sample_shaped)
 
+def get_full_data(file_name: str, debug: bool = False): # FIXME add return type hint
+  """
+  *** Returns a generator ***
+  """
+  seed = 1000
+  scale = 1000 #scale down HT to values closer to unity
+  fudgefactor = 1 #if >1, artificially make the separation between both distributions better
+  with h5py.File(file_name, 'r') as hf:
+    # Get 'data' group
+    data = hf.get('data')
+    # Get bin probabilities for ht distributions for events w/ and w/o quark jets
+    quark_jet_flag = np.array(data.get('ZeroQuarkJetsFlag'))
+    # Get HT for events w/ and w/o quark jets
+    ht = np.array(data.get('HT'))/scale
+    # Get normalization weight (normweight) for events w/ and w/o quark jets
+    wgt = np.array(data.get('normweight'))
+    return ht, quark_jet_flag, wgt
+
 if __name__ == '__main__':
   X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, True))
   print(f'X[0] = {X[0]}')
   print(f'y[0] = {y[0]}')
+  X, y, wgt = next(get_full_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5', True))
+  print(f'X[0] = {X[0]}')
+  print(f'y[0] = {y[0]}')
+  print(f'wgt[0] = {wgt[0]}')
