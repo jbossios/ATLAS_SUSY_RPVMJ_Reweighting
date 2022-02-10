@@ -76,5 +76,3 @@ if __name__ == '__main__':
   X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, True))
   print(f'X[0] = {X[0]}')
   print(f'y[0] = {y[0]}')
-  print(f'{X[0] = }')
-  print(f'{y[0] = }')
