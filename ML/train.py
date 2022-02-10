@@ -2,6 +2,7 @@ import torch.nn as nn
 from torch import save, load
 from torch import Tensor
 from torch import no_grad
+from torch import randn # Temporary
 from torch.optim import Adam
 from make_model import make_model
 #from get_data import get_data, get_normweight
@@ -17,6 +18,7 @@ def train(model: nn.Sequential, loss: nn.BCELoss, opt: Adam, Xs: np.ndarray, ys:
     X = Xs[i].reshape(Xs[i].size, 1)
     y = ys[i].reshape(Xs[i].size, 1)
     p = model(Tensor(X).float())
+
     lossval = loss(p, Tensor(y).float())
     
     # Zero the gradients before running the backward pass
@@ -27,7 +29,7 @@ def train(model: nn.Sequential, loss: nn.BCELoss, opt: Adam, Xs: np.ndarray, ys:
     
     opt.step()
     if i % 100 == 0:
-      print(f'{lossval = }')
+      print(f'lossval = {lossval}')
   return model
 
 if __name__ == '__main__':

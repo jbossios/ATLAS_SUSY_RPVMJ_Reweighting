@@ -43,14 +43,14 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, debug: bool =
     Flags = []
     for iepoch in range(nepochs): # loop over batches
       if debug:
-        print(f'{iepoch = }')
+        print(f'iepoch = {iepoch}')
       # Decide how many events will have quark jets and how many will not
       flag_sample = np.random.choice(np.linspace(0, 1, 2), batch_size, p = p_flag)
       zq_size = np.count_nonzero(flag_sample == 1)
       nzq_size = np.count_nonzero(flag_sample == 0)
       if debug:
-        print(f'{zq_size = }')
-        print(f'{nzq_size = }')
+        print(f'zq_size = {zq_size}')
+        print(f'nzq_size = {nzq_size}')
       # Sample the corresponding number of HT values from the appropriate pdf
       ht_zq_sample = np.random.choice(bin_centers, zq_size, p = np.multiply(p_zq, np.tile([bin_width], p_zq.size)))
       zq_flags = np.tile([1], zq_size)
@@ -76,5 +76,5 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, debug: bool =
 
 if __name__ == '__main__':
   X, y = get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, True)
-  print(f'{X[0] = }')
-  print(f'{y[0] = }')
+  print(f'X[0] = {X[0]}')
+  print(f'y[0] = {y[0]}')
