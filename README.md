@@ -1,14 +1,22 @@
 # <div allign='center'>Background estimation through reweighting<div> 
 
-## Create input H5 files
+## Where to run?
 
-Use the ```CreateH5files.py``` script to produce H5 files with the information needed for the training.
+### On lxplus
 
-**Setup:**
+Run first the following:
 
 ```
 source Setup.sh
 ```
+
+### On ml.cern.ch
+
+Use the following image: gitlab-registry.cern.ch/ai-ml/kubeflow_images/pytorch-notebook-gpu-1.8.1:v0.6.1-30
+
+## Create input H5 files
+
+Use the ```CreateH5files.py``` script to produce H5 files with the information needed for the training.
 
 **How to run?**
 
