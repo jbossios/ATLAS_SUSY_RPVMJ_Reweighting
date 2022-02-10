@@ -5,14 +5,14 @@ from typing import Tuple
 def make_model(input_dim: int, out_dim: int, lr: float = 1e-4) -> Tuple[nn.Sequential, nn.BCELoss, Adam]:
   block = 10
   model = nn.Sequential(
-      nn.Linear(input_dim, block),
-      nn.ReLU(),
-      nn.Linear(block, block),
-      nn.ReLU(),
+      #nn.Linear(input_dim, block),
+      #nn.ReLU(),
       #nn.Linear(block, block),
       #nn.ReLU(),
-      nn.Linear(block, out_dim),
-      nn.Sigmoid()
+      #nn.Linear(block, block),
+      #nn.ReLU(),
+      #nn.Linear(block, out_dim),
+      #nn.Sigmoid()
 
       nn.Linear(input_dim, out_dim),
       nn.Sigmoid()
