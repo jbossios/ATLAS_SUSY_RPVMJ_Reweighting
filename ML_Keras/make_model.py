@@ -13,11 +13,12 @@ def make_model(**kargs):
     model.compile(
         optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
         loss=tf.keras.losses.BinaryCrossentropy(),
+        metrics=['accuracy']
     )
     # Callbacks
     callbacks = []
     # EarlyStopping
-    early_stopping = tf.keras.callbacks.EarlyStopping(patience=20, mode='min', restore_best_weights=True)
+    early_stopping = tf.keras.callbacks.EarlyStopping(patience=20, mode='min', restore_best_weights=True, monitor="val_loss")
     callbacks.append(early_stopping)
     # ModelCheckpoint
     model_checkpoint = tf.keras.callbacks.ModelCheckpoint('best_model.h5', monitor='val_loss', mode='min', save_best_only=True)
