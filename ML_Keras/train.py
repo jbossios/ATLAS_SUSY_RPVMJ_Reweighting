@@ -51,7 +51,7 @@ def main():
 
     # data set generators
     train_data_gen = get_data(conf["file"], conf["nepochs"], conf["train_batch_size"])
-    val_data_gen = get_data(conf["file"], conf["nepochs"], conf["val_batch_size"]) # to-do be more careful about partitioning the train and val data
+    val_data_gen = get_data(conf["file"], conf["nepochs"], conf["val_batch_size"]) # NOTE: for now we will sample the validation data from the same probability density function
 
     # make model
     model = make_model(input_dim=1, ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=conf["learning_rate"])
