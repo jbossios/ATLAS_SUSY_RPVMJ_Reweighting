@@ -1,5 +1,5 @@
 '''
-Author: Anthony Badea
+Author: Jonathan Bossio, Anthony Badea
 Date: Monday April 25, 2022
 '''
 
