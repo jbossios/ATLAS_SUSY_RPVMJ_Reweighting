@@ -14,12 +14,16 @@ def main():
 	model.summary()
 
 	# load data
-	batch_size = 256 #2048
-	nepochs = 2
-	datagen = get_data('mc16a_dijets_JZAll_for_reweighting.h5', nepochs, batch_size)
-
+	file = 'mc16a_dijets_JZAll_for_reweighting.h5'
+	with h5py.File(file) as f:
+		num_samples = f['data']['ZeroQuarkJetsFlag'].shape[0]
+	batch_size = 2048
+	nepochs = 3
+	datagen = get_data(file, nepochs, batch_size)
+	print(f"Num samples {num_samples}, Epochs {nepochs}, Batch size {batch_size}, Steps per epoch {num_samples // batch_size}")
 	# train
 	model.fit(datagen, 
+			steps_per_epoch= num_samples // batch_size,
 			epochs = nepochs,
 			callbacks = callbacks,
 			verbose=1) #,
