@@ -10,6 +10,7 @@ import argparse
 import json
 import datetime
 import os
+import sys
 
 # custom imports
 from make_model import make_model
@@ -42,6 +43,11 @@ def main():
         }
         with open('conf.json', 'w') as fp:
             json.dump(conf, fp)
+
+    # protection
+    if not conf["file"]:
+        print('ERROR: No input file was provided, exiting')
+        sys.exit(1)
 
     # training configuration
     with h5py.File(conf["file"]) as f:
