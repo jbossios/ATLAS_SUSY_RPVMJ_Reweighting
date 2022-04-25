@@ -30,12 +30,13 @@ def main():
     else:
         conf = {
             "file": ops.inFile,
+            "input_dim" : ops.input_dim,
             "ndense" : ops.ndense,
             "nnode_per_dense" : ops.nnode_per_dense
         }
 
     # load model
-    model = make_model(input_dim=1, ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=1e-3)
+    model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=1e-3)
     model.summary()
     model.load_weights(ops.model_weights)
     x, y, normweight = get_full_data(conf["file"])
@@ -73,6 +74,7 @@ def options():
     parser.add_argument("-i",  "--inFile", help="Input file.", default=None)
     parser.add_argument("-m",  "--model_weights", help="Model weights.", default=None)
     # model settings
+    parser.add_argument("-ni", "--input_dim", help="Dimension of inputs per event for the first layer.", default=1, type=int)
     parser.add_argument("-nl", "--ndense", help="Number of dense layers.", default=1, type=int)
     parser.add_argument("-nd", "--nnode_per_dense", help="Number of nodes per dense layer.", default=30, type=int)
     return parser.parse_args()
