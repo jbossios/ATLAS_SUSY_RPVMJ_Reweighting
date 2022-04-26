@@ -1,0 +1,10 @@
+# folders
+__pycache__
+checkpoints
+
+# file types
+*.npz
+*.txt
+*.h5
+*~
+*.json
