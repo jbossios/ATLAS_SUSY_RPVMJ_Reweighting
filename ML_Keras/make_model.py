@@ -10,9 +10,12 @@ def make_model(**kargs):
     
     # Create model
     model = tf.keras.Sequential()
-    for i in range(kargs["ndense"]):
-        model.add(tf.keras.layers.Dense(kargs["nnode_per_dense"], input_dim=kargs["input_dim"], activation="relu"))
-    model.add(tf.keras.layers.Dense(1, activation="sigmoid"))
+    
+    nodes = [kargs["nnode_per_dense"] for i in range(kargs["ndense"]-1)] + [1]
+    input_dims = [kargs["input_dim"]] + nodes
+    activations = ["relu" for i in range(kargs["ndense"]-1)] + ["sigmoid"]
+    for node, input_dim, activation in zip(nodes, input_dims, activations):
+        model.add(tf.keras.layers.Dense(node, input_dim=input_dim, activation=activation))
     
     # Compile model
     model.compile(
