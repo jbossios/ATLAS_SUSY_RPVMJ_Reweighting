@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import argparse
 import json
 import tensorflow as tf
-
+import os
+import logging
 # custom code
 from get_data import get_full_data
 from make_model import make_model
@@ -21,11 +22,15 @@ if physical_devices:
 
 def main():
 
+    # logger
+    logging.basicConfig(level = 'INFO', format = '%(levelname)s: %(message)s')
+    log = logging.getLogger()
+
     # user options
     ops = options()
     if ops.conf:
         with open(ops.conf) as f:
-            print(f"opening {ops.conf}")
+            log.info(f"opening {ops.conf}")
             conf = json.load(f)
     else:
         conf = {
@@ -38,7 +43,13 @@ def main():
     # load model
     model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=1e-3)
     model.summary()
-    model.load_weights(ops.model_weights)
+    # if checkpoint directory provided use the latest
+    if os.path.isdir(ops.model_weights):
+        latest = tf.train.latest_checkpoint(ops.model_weights)
+        log.info(f"Using latest weights from checkpoint directory: {latest}")
+        model.load_weights(latest)
+    else:
+        model.load_weights(ops.model_weights)
     x, y, normweight = get_full_data(conf["file"])
 
     # prepare data

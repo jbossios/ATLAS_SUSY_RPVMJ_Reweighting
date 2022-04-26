@@ -71,11 +71,12 @@ def main():
     )
     callbacks.append(early_stopping)
     # ModelCheckpoint
-    checkpoint_filepath = f'./checkpoints/{datetime.datetime.now().strftime("%H.%M.%S")}'
-    if not os.path.isdir(checkpoint_filepath):
-        os.makedirs(checkpoint_filepath)
+    checkpoint_filepath = f'./checkpoints/training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}/' + "cp-{epoch:04d}.ckpt"
+    checkpoint_dir = os.path.dirname(checkpoint_filepath)
+    if not os.path.isdir(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
     model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=True
+        checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=True, save_weights_only=True,
     )
     callbacks.append(model_checkpoint)
     # Terminate on NaN such that it is easier to debug
