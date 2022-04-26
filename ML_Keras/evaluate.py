@@ -10,7 +10,6 @@ matplotlib.use('Agg')
 # python imports
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import AutoMinorLocator
 import argparse
 import json
 import tensorflow as tf
