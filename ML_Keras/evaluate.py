@@ -48,9 +48,9 @@ def main():
     if os.path.isdir(ops.model_weights):
         latest = tf.train.latest_checkpoint(ops.model_weights)
         log.info(f"Using latest weights from checkpoint directory: {latest}")
-        model.load_weights(latest)
+        model.load_weights(latest).expect_partial()
     else:
-        model.load_weights(ops.model_weights)
+        model.load_weights(ops.model_weights).expect_partial()
     x, y, normweight = get_full_data(conf["file"])
 
     # prepare data
