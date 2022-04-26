@@ -11,6 +11,7 @@ import json
 import datetime
 import os
 import sys
+import logging
 
 # custom imports
 from make_model import make_model
@@ -23,11 +24,15 @@ if physical_devices:
 
 def main():
 
+    # logger
+    logging.basicConfig(level = 'INFO', format = '%(levelname)s: %(message)s')
+    log = logging.getLogger()
+
     # user options
     ops = options()
     if ops.conf:
         with open(ops.conf) as f:
-            print(f"opening {ops.conf}")
+            log.info(f"opening {ops.conf}")
             conf = json.load(f)
     else:
         conf = {
@@ -46,14 +51,14 @@ def main():
 
     # protection
     if not conf["file"]:
-        print('ERROR: No input file was provided, exiting')
+        log.error('ERROR: No input file was provided, exiting')
         sys.exit(1)
 
     # training configuration
     with h5py.File(conf["file"]) as f:
         conf["num_samples"] = f["data"]["ZeroQuarkJetsFlag"].shape[0]
     conf["train_steps_per_epoch"] = conf["num_samples"] // conf["train_batch_size"]
-    print(conf)
+    log.info("Training configuration: \n" + json.dumps(conf, indent=4, sort_keys=True))
 
     # data set generators
     train_data_gen = get_data(conf["file"], conf["nepochs"], conf["train_batch_size"])

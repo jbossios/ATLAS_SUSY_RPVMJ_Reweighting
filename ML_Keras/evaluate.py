@@ -11,6 +11,7 @@ import json
 import tensorflow as tf
 import os
 import logging
+
 # custom code
 from get_data import get_full_data
 from make_model import make_model
