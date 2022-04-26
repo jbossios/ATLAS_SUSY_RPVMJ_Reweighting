@@ -3,6 +3,10 @@ Author: Anthony Badea
 Date: Monday April 25, 2022
 '''
 
+# Need the following to run on LXPLUS
+import matplotlib
+matplotlib.use('Agg')
+
 # python imports
 import numpy as np
 import matplotlib.pyplot as plt
@@ -77,7 +81,7 @@ def main():
     final_weights *= normweightsa
     c2, _, _ = plt.hist(xa, bins = bins, alpha = 0.5, weights = final_weights, label = '#Quarks > 0 reweighted to #QuarksJets = 0', color = 'yellow', density=True) 
     plt.legend()
-    plt.show()
+    plt.savefig('eval.pdf')  # TODO: improve output name
 
 def options():
     parser = argparse.ArgumentParser()
