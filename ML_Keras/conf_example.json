@@ -6,6 +6,6 @@
    "validation_steps": 1,
    "learning_rate": 0.001,
    "input_dim": 1,
-   "ndense": 1,
+   "ndense": 2,
    "nnode_per_dense": 30
 }
