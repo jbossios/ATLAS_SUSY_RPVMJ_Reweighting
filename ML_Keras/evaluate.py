@@ -10,6 +10,7 @@ matplotlib.use('Agg')
 # python imports
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
 import argparse
 import json
 import tensorflow as tf
@@ -73,14 +74,22 @@ def main():
     # plot
     xa = np.multiply(xa, 1000)
     xb = np.multiply(xb, 1000)
-    c0, _, _ = plt.hist(xa, bins = bins, alpha = 0.5, weights = normweightsa, label = '#QuarkJets > 0', color = 'red', density=True)
-    c1, _, _ = plt.hist(xb, bins = bins, alpha = 0.5, weights = normweightsb, label = '#QuarkJets = 0', color = 'blue', density=True)
+    fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,figsize=(8, 8),gridspec_kw={"height_ratios": [3.5,1]},)
+    rx.set_ylabel("Ratio")
+    rx.set_xlabel("HT [GeV]")
+    ax.set_ylabel("Density of Events")
+    c0, bin_edges, _ = ax.hist(xa, bins = bins, alpha = 0.5, weights = normweightsa, label = 'NQuarkJets > 0', color = 'red', density=True)
+    c1, bin_edges, _ = ax.hist(xb, bins = bins, alpha = 0.5, weights = normweightsb, label = 'NQuarkJets = 0', color = 'blue', density=True)
     p = np.array(p).reshape(x.size, 1)
     _pp = p[y==0]
     final_weights = (1-_pp)/_pp
     final_weights *= normweightsa
-    c2, _, _ = plt.hist(xa, bins = bins, alpha = 0.5, weights = final_weights, label = '#Quarks > 0 reweighted to #QuarksJets = 0', color = 'yellow', density=True) 
-    plt.legend()
+    c2, bin_edges, _ = ax.hist(xa, bins = bins, alpha = 0.5, weights = final_weights, label = 'NQuarkJets > 0 reweighted to NQuarkJets = 0', color = 'yellow', density=True) 
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c0 + 10**-50), 'o-', label = 'Reweighted NQuarkJets > 0 / NQuarkJets = 0', color = 'black')
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
+    rx.set_ylim(0,3)
+    ax.legend()
+    rx.legend()
     plt.savefig('eval.pdf')  # TODO: improve output name
 
 def options():
