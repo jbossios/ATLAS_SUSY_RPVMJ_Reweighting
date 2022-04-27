@@ -1,5 +1,5 @@
 '''
-Author: Anthony Badea
+Authors: Anthony Badea, Jonathan Bossio
 Date: Monday April 25, 2022
 '''
 
@@ -12,6 +12,7 @@ import datetime
 import os
 import sys
 import logging
+import pandas as pd
 
 # custom imports
 from make_model import make_model
@@ -97,7 +98,7 @@ def main():
     callbacks.append(tf.keras.callbacks.TerminateOnNaN())
 
     # train
-    model.fit(
+    history = model.fit(
         train_data_gen,
         steps_per_epoch=conf["train_steps_per_epoch"],
         epochs=conf["nepochs"],
@@ -106,6 +107,14 @@ def main():
         validation_data=val_data_gen,
         validation_steps=conf["validation_steps"]
     )
+
+    # Plot loss vs epochs (if nepochs > 1)
+    if conf["nepochs"] > 1:
+        data = pd.DataFrame(history.history)
+        log.info(data.head())
+        data['epoch'] = history.epoch
+        from plotting_functions import plot_loss
+        plot_loss(history)
 
 
 def options():
