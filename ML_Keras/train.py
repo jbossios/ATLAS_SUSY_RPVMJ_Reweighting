@@ -64,14 +64,14 @@ def main():
     # data set generators
     seed = None
     if "seed" in conf and conf["seed"] is not None:
-      seed = conf["seed"]
+        seed = conf["seed"]
     train_data_gen = get_data(conf["file"], conf["nepochs"], conf["train_batch_size"], seed)
     # sample validation data from the same probability density function (but generated val data is statistically independent w.r.t training data)
     val_data_gen = get_data(conf["file"], conf["nepochs"], conf["val_batch_size"], seed+1 if seed is not None else None)
 
     # set seeds to get reproducible results (only if requested)
     if seed is not None:
-      tf.keras.utils.set_random_seed(seed)
+        tf.keras.utils.set_random_seed(seed)
 
     # make model
     model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=conf["learning_rate"])
