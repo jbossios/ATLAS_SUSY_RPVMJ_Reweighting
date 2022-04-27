@@ -14,6 +14,7 @@ import argparse
 import json
 import tensorflow as tf
 import os
+import sys
 import logging
 
 # custom code
@@ -44,6 +45,11 @@ def main():
             "ndense" : ops.ndense,
             "nnode_per_dense" : ops.nnode_per_dense
         }
+
+    # protection
+    if ops.model_weights is None:
+      print('ERROR: no model weights were provided, exiting')
+      sys.exit(1)
 
     # load model
     model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=1e-3)
