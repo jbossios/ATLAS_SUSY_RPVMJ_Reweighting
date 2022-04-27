@@ -1,16 +1,21 @@
 import h5py
 import numpy as np
 import random
-import matplotlib.pyplot as plt
 
-def get_data(file_name: str, nepochs: int, batch_size: int = 2048, debug: bool = False): # FIXME add return type hint
+# Need the following to run on LXPLUS
+import matplotlib
+matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt
+from typing import Tuple
+
+def get_data(file_name: str, nepochs: int, batch_size: int = 2048, seed: int = None, debug: bool = False): # FIXME add return type hint
   """
   Sample nepochs batches of size batch_size
   On each batch, data is sampled from pdfs constructed using weighted distributions
   data is sampled from the corresponding pdf based on probabilities
   *** Returns a generator ***
   """
-  seed = 1000
   scale = 1000 #scale down HT to values closer to unity
   fudgefactor = 1 #if >1, artificially make the separation between both distributions better
   while True:
@@ -37,6 +42,7 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, debug: bool =
       if debug: # plot input HT histograms
         c0, _, _ = plt.hist(ht_zq, bins = bins, weights = wgt_zq, alpha = 0.5, color = 'red', density = True)
         c1, _, _ = plt.hist(ht_nzq, bins = bins, weights = wgt_nzq, alpha = 0.5, color = 'blue', density = True)
+        plt.savefig('compare_input_HT_histograms.pdf')  # TODO: improve output name
       # Construct pdfs
       p_zq, _ = np.histogram(ht_zq, bins = bins, weights = wgt_zq, density = True) # pdf for HT distribution on events w/ quark jets
       p_nzq, _ = np.histogram(ht_nzq, bins = bins, weights = wgt_nzq, density = True) # pdf for HT distribution on events w/o quark jets
@@ -63,22 +69,23 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, debug: bool =
         # Reshape data and shuffle coherently
         ht_sample_shaped = ht_sample.reshape(batch_size, -1)
         flags_sample_shaped = flags_sample.reshape(batch_size, -1)
-        random.seed(seed)
+        if seed is not None:
+          random.seed(seed)
         random.shuffle(ht_sample_shaped)
-        random.seed(seed)
+        if seed is not None:
+          random.seed(seed)
         random.shuffle(flags_sample_shaped)
+        plt.clf() # clean figure
         if not iepoch and debug: # compare sampled data for first epoch
           c2, _, _ = plt.hist(ht_zq_sample, bins = bins, alpha = 0.5, color = 'green', density = True)
           c3, _, _ = plt.hist(ht_nzq_sample, bins = bins, alpha = 0.5, color = 'orange', density = True)
-          plt.show()
-        # print(np.array(ht_sample_shaped).shape, np.array(flags_sample_shaped).shape)
+          plt.savefig('compare_sampled_data.pdf')  # TODO: improve output name
         yield np.array(ht_sample_shaped), np.array(flags_sample_shaped)
 
-def get_full_data(file_name: str, debug: bool = False): # FIXME add return type hint
+def get_full_data(file_name: str) -> Tuple[np.array, np.array, np.array]:
   """
-  *** Returns a generator ***
+  Get full (actual) data from input H5 file (not sampling from pdfs!)
   """
-  seed = 1000
   scale = 1000 #scale down HT to values closer to unity
   fudgefactor = 1 #if >1, artificially make the separation between both distributions better
   with h5py.File(file_name, 'r') as hf:
@@ -93,10 +100,10 @@ def get_full_data(file_name: str, debug: bool = False): # FIXME add return type 
     return ht, quark_jet_flag, wgt
 
 if __name__ == '__main__':
-  X, y = next(get_data('mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, True))
+  X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, None, True))
   print(f'X[0] = {X[0]}')
   print(f'y[0] = {y[0]}')
-  # X, y, wgt = next(get_full_data('mc16a_dijets_JZAll_for_reweighting.h5', True))
+  # X, y, wgt = get_full_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5')
   # print(f'X[0] = {X[0]}')
   # print(f'y[0] = {y[0]}')
   # print(f'wgt[0] = {wgt[0]}')
