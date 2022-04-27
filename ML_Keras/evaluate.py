@@ -26,25 +26,28 @@ physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-def main():
+def main(config = None):
 
     # logger
     logging.basicConfig(level = 'INFO', format = '%(levelname)s: %(message)s')
     log = logging.getLogger()
 
     # user options
-    ops = options()
-    if ops.conf:
-        with open(ops.conf) as f:
-            log.info(f"opening {ops.conf}")
-            conf = json.load(f)
+    if config is not None:
+        conf = config
     else:
-        conf = {
-            "file": ops.inFile,
-            "input_dim" : ops.input_dim,
-            "ndense" : ops.ndense,
-            "nnode_per_dense" : ops.nnode_per_dense
-        }
+        ops = options()
+        if ops.conf:
+            with open(ops.conf) as f:
+                log.info(f"opening {ops.conf}")
+                conf = json.load(f)
+        else:
+            conf = {
+                "file": ops.inFile,
+                "input_dim" : ops.input_dim,
+                "ndense" : ops.ndense,
+                "nnode_per_dense" : ops.nnode_per_dense
+            }
 
     # protection
     if ops.model_weights is None:
@@ -97,6 +100,8 @@ def main():
     rx.legend()
     ax.set_yscale("log")
     plt.savefig('eval.pdf')  # TODO: improve output name
+
+    return p  # return predicted values for CI tests
 
 def options():
     parser = argparse.ArgumentParser()
