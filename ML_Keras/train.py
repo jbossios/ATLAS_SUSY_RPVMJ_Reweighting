@@ -45,7 +45,7 @@ def main():
             "input_dim" : ops.input_dim,
             "ndense" : ops.ndense,
             "nnode_per_dense" : ops.nnode_per_dense,
-            "tf_seed" : ops.tf_seed
+            "seed" : ops.seed
         }
         with open('conf.json', 'w') as fp:
             json.dump(conf, fp)
@@ -62,12 +62,16 @@ def main():
     log.info("Training configuration: \n" + json.dumps(conf, indent=4, sort_keys=True))
 
     # data set generators
-    train_data_gen = get_data(conf["file"], conf["nepochs"], conf["train_batch_size"])
-    val_data_gen = get_data(conf["file"], conf["nepochs"], conf["val_batch_size"]) # NOTE: for now we will sample the validation data from the same probability density function
+    seed = None
+    if "seed" in conf and conf["seed"] is not None:
+      seed = conf["seed"]
+    train_data_gen = get_data(conf["file"], conf["nepochs"], conf["train_batch_size"], seed)
+    # sample validation data from the same probability density function (but generated val data is statistically independent w.r.t training data)
+    val_data_gen = get_data(conf["file"], conf["nepochs"], conf["val_batch_size"], seed+1 if seed is not None else None)
 
     # set seeds to get reproducible results (only if requested)
-    if "tf_seed" in conf and conf["tf_seed"] is not None:
-      tf.keras.utils.set_random_seed(conf["tf_seed"])
+    if seed is not None:
+      tf.keras.utils.set_random_seed(seed)
 
     # make model
     model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=conf["learning_rate"])
@@ -119,7 +123,7 @@ def options():
     parser.add_argument("-ni", "--input_dim", help="Dimension of inputs per event for the first layer.", default=1, type=int)
     parser.add_argument("-nl", "--ndense", help="Number of dense layers.", default=1, type=int)
     parser.add_argument("-nd", "--nnode_per_dense", help="Number of nodes per dense layer.", default=30, type=int)
-    parser.add_argument("-tfs", "--tf_seed", help="Tensorflow seed", default=None, type=int)
+    parser.add_argument("-s", "--seed", help="Seed for TensorFlow and NumPy", default=None, type=int)
     return parser.parse_args()
 
 if __name__ == "__main__":
