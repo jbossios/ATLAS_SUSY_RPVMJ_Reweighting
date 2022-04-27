@@ -20,18 +20,16 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, seed: int = N
   fudgefactor = 1 #if >1, artificially make the separation between both distributions better
   while True:
     with h5py.File(file_name, 'r') as hf:
-      # Get 'data' group
-      data = hf.get('data')
       # Get bin probabilities for ht distributions for events w/ and w/o quark jets
-      quark_jet_flag = np.array(data.get('ZeroQuarkJetsFlag'))
+      nQuarkJets = np.array(hf["nQuarkJets"]['values'])
       # Get HT for events w/ and w/o quark jets
-      ht = np.array(data.get('HT'))/scale
-      ht_zq = ht[quark_jet_flag == 1]
-      ht_nzq = ht[quark_jet_flag == 0]*fudgefactor
+      ht = np.array(hf['HT']['values'])/scale
+      ht_zq = ht[nQuarkJets > 0]
+      ht_nzq = ht[nQuarkJets == 0]*fudgefactor
       # Get normalization weight (normweight) for events w/ and w/o quark jets
-      wgt = np.array(data.get('normweight'))
-      wgt_zq = wgt[quark_jet_flag == 1]
-      wgt_nzq = wgt[quark_jet_flag == 0]
+      wgt = np.array(hf['normweight']['values'])
+      wgt_zq = wgt[nQuarkJets > 0]
+      wgt_nzq = wgt[nQuarkJets == 0]
       # Define binning for HT data
       bin_width = 80/scale
       min_bin = 0
@@ -46,7 +44,6 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, seed: int = N
       # Construct pdfs
       p_zq, _ = np.histogram(ht_zq, bins = bins, weights = wgt_zq, density = True) # pdf for HT distribution on events w/ quark jets
       p_nzq, _ = np.histogram(ht_nzq, bins = bins, weights = wgt_nzq, density = True) # pdf for HT distribution on events w/o quark jets
-      p_flag, _ = np.histogram(quark_jet_flag, bins = np.linspace(-0.5, 1.5, 3), weights = wgt, density = True) # pdf to decide if event has or not quark jets
       # Prepare batches of data
       for iepoch in range(nepochs): # loop over batches
         if debug:
@@ -89,15 +86,13 @@ def get_full_data(file_name: str) -> Tuple[np.array, np.array, np.array]:
   scale = 1000 #scale down HT to values closer to unity
   fudgefactor = 1 #if >1, artificially make the separation between both distributions better
   with h5py.File(file_name, 'r') as hf:
-    # Get 'data' group
-    data = hf.get('data')
     # Get bin probabilities for ht distributions for events w/ and w/o quark jets
-    quark_jet_flag = np.array(data.get('ZeroQuarkJetsFlag'))
+    nQuarkJets = np.array(hf["nQuarkJets"]['values'])
     # Get HT for events w/ and w/o quark jets
-    ht = np.array(data.get('HT'))/scale
+    ht = np.array(hf['HT']['values'])/scale
     # Get normalization weight (normweight) for events w/ and w/o quark jets
-    wgt = np.array(data.get('normweight'))
-    return ht, quark_jet_flag, wgt
+    wgt = np.array(hf['normweight']['values'])
+    return ht, nQuarkJets, wgt
 
 if __name__ == '__main__':
   X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, None, True))
