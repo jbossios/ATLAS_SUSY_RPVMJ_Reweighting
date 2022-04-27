@@ -23,33 +23,36 @@ physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-def main():
+def main(config = None):
 
     # logger
     logging.basicConfig(level = 'INFO', format = '%(levelname)s: %(message)s')
     log = logging.getLogger()
 
     # user options
-    ops = options()
-    if ops.conf:
-        with open(ops.conf) as f:
-            log.info(f"opening {ops.conf}")
-            conf = json.load(f)
+    if config is not None:
+        conf = config
     else:
-        conf = {
-            "file": ops.inFile,
-            "nepochs": ops.nepochs,
-            "train_batch_size": ops.train_batch_size,
-            "val_batch_size": ops.val_batch_size,
-            "validation_steps" : ops.validation_steps,
-            "learning_rate" : ops.learning_rate,
-            "input_dim" : ops.input_dim,
-            "ndense" : ops.ndense,
-            "nnode_per_dense" : ops.nnode_per_dense,
-            "seed" : ops.seed
-        }
-        with open('conf.json', 'w') as fp:
-            json.dump(conf, fp)
+        ops = options()
+        if ops.conf:
+            with open(ops.conf) as f:
+                log.info(f"opening {ops.conf}")
+                conf = json.load(f)
+        else:
+            conf = {
+                "file": ops.inFile,
+                "nepochs": ops.nepochs,
+                "train_batch_size": ops.train_batch_size,
+                "val_batch_size": ops.val_batch_size,
+                "validation_steps" : ops.validation_steps,
+                "learning_rate" : ops.learning_rate,
+                "input_dim" : ops.input_dim,
+                "ndense" : ops.ndense,
+                "nnode_per_dense" : ops.nnode_per_dense,
+                "seed" : ops.seed
+            }
+            with open('conf.json', 'w') as fp:
+                json.dump(conf, fp)
 
     # protection
     if not conf["file"]:
@@ -108,13 +111,17 @@ def main():
         validation_steps=conf["validation_steps"]
     )
 
+    # Get training history
+    data = pd.DataFrame(history.history)
+    log.debug(data.head())
+
     # Plot loss vs epochs (if nepochs > 1)
     if conf["nepochs"] > 1:
-        data = pd.DataFrame(history.history)
-        log.info(data.head())
-        data['epoch'] = history.epoch
         from plotting_functions import plot_loss
+        data['epoch'] = history.epoch
         plot_loss(history)
+
+    return data  # will be used in CI tests
 
 
 def options():
