@@ -1,5 +1,5 @@
 {
-   "file": "/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5",
+   "file": "/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v2/mc16a_dijets_JZAll_for_reweighting.h5",
    "nepochs": 1,
    "train_batch_size": 10000,
    "val_batch_size": 256,
