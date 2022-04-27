@@ -7,5 +7,6 @@
    "learning_rate": 0.001,
    "input_dim": 1,
    "ndense": 2,
-   "nnode_per_dense": 30
+   "nnode_per_dense": 30,
+   "tf_seed": 1
 }

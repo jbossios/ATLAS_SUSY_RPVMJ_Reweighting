@@ -44,7 +44,8 @@ def main():
             "learning_rate" : ops.learning_rate,
             "input_dim" : ops.input_dim,
             "ndense" : ops.ndense,
-            "nnode_per_dense" : ops.nnode_per_dense
+            "nnode_per_dense" : ops.nnode_per_dense,
+            "tf_seed" : ops.tf_seed
         }
         with open('conf.json', 'w') as fp:
             json.dump(conf, fp)
@@ -63,6 +64,10 @@ def main():
     # data set generators
     train_data_gen = get_data(conf["file"], conf["nepochs"], conf["train_batch_size"])
     val_data_gen = get_data(conf["file"], conf["nepochs"], conf["val_batch_size"]) # NOTE: for now we will sample the validation data from the same probability density function
+
+    # set seeds to get reproducible results (only if requested)
+    if "tf_seed" in conf and conf["tf_seed"] is not None:
+      tf.keras.utils.set_random_seed(conf["tf_seed"])
 
     # make model
     model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=conf["learning_rate"])
@@ -114,6 +119,7 @@ def options():
     parser.add_argument("-ni", "--input_dim", help="Dimension of inputs per event for the first layer.", default=1, type=int)
     parser.add_argument("-nl", "--ndense", help="Number of dense layers.", default=1, type=int)
     parser.add_argument("-nd", "--nnode_per_dense", help="Number of nodes per dense layer.", default=30, type=int)
+    parser.add_argument("-tfs", "--tf_seed", help="Tensorflow seed", default=None, type=int)
     return parser.parse_args()
 
 if __name__ == "__main__":
