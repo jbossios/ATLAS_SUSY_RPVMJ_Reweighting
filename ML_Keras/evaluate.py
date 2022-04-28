@@ -64,17 +64,17 @@ def main(config = None):
         model.load_weights(latest).expect_partial()
     else:
         model.load_weights(ops.model_weights).expect_partial()
-    x, y, normweight = get_full_data(conf["file"])
+    x, nQuarkJets, normweight = get_full_data(conf["file"])
 
     # prepare data
     x = x.reshape(x.size, 1)
-    y = y.reshape(x.size, 1)
+    nQuarkJets = nQuarkJets.reshape(x.size, 1)
     normweight = normweight.reshape(x.size, 1)
-    xa = x[y==0]
-    xb = x[y==1]
+    xa = x[nQuarkJets==0]
+    xb = x[nQuarkJets>0]
     bins = np.linspace(0, 8000, 100)
-    normweightsa = normweight[y==0]
-    normweightsb = normweight[y==1]
+    normweightsa = normweight[nQuarkJets==0]
+    normweightsb = normweight[nQuarkJets>0]
 
     # make model prediction
     p = model.predict(x)
@@ -89,7 +89,7 @@ def main(config = None):
     c0, bin_edges, _ = ax.hist(xa, bins = bins, alpha = 0.5, weights = normweightsa, label = 'NQuarkJets > 0', color = 'red', density=True, histtype="step", lw=2)
     c1, bin_edges, _ = ax.hist(xb, bins = bins, alpha = 0.5, weights = normweightsb, label = 'NQuarkJets = 0', color = 'blue', density=True, histtype="step", lw=2)
     p = np.array(p).reshape(x.size, 1)
-    _pp = p[y==0]
+    _pp = p[nQuarkJets==0]
     final_weights = (1-_pp)/_pp
     final_weights *= normweightsa
     c2, bin_edges, _ = ax.hist(xa, bins = bins, alpha = 0.5, weights = final_weights, label = 'NQuarkJets > 0 reweighted to NQuarkJets = 0', color = 'yellow', density=True, histtype="step", lw=2) 
