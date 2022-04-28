@@ -44,6 +44,7 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, seed: int = N
       # Construct pdfs
       p_zq, _ = np.histogram(ht_zq, bins = bins, weights = wgt_zq, density = True) # pdf for HT distribution on events w/ quark jets
       p_nzq, _ = np.histogram(ht_nzq, bins = bins, weights = wgt_nzq, density = True) # pdf for HT distribution on events w/o quark jets
+      # p_flag, _ = np.histogram(quark_jet_flag, bins = np.linspace(-0.5, 1.5, 3), weights = wgt, density = True) # pdf to decide if event has or not quark jets
       # Prepare batches of data
       for iepoch in range(nepochs): # loop over batches
         if debug:
