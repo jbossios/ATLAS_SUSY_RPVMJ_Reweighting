@@ -24,12 +24,12 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, seed: int = N
       nQuarkJets = np.array(hf["nQuarkJets"]['values'])
       # Get HT for events w/ and w/o quark jets
       ht = np.array(hf['HT']['values'])/scale
-      ht_zq = ht[nQuarkJets > 0]
-      ht_nzq = ht[nQuarkJets == 0]*fudgefactor
+      ht_zq = ht[nQuarkJets == 0]
+      ht_nzq = ht[nQuarkJets > 0]*fudgefactor
       # Get normalization weight (normweight) for events w/ and w/o quark jets
       wgt = np.array(hf['normweight']['values'])
-      wgt_zq = wgt[nQuarkJets > 0]
-      wgt_nzq = wgt[nQuarkJets == 0]
+      wgt_zq = wgt[nQuarkJets == 0]
+      wgt_nzq = wgt[nQuarkJets > 0]
       # Define binning for HT data
       bin_width = 80/scale
       min_bin = 0
