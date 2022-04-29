@@ -49,7 +49,8 @@ def main(config = None):
                 "input_dim" : ops.input_dim,
                 "ndense" : ops.ndense,
                 "nnode_per_dense" : ops.nnode_per_dense,
-                "seed" : ops.seed
+                "seed" : ops.seed,
+                "num_samples" : ops.num_samples
             }
             with open('conf.json', 'w') as fp:
                 json.dump(conf, fp)
@@ -60,8 +61,11 @@ def main(config = None):
         sys.exit(1)
 
     # training configuration
-    with h5py.File(conf["file"]) as f:
-        conf["num_samples"] = f["data"]["ZeroQuarkJetsFlag"].shape[0]
+    if "num_samples" in conf and conf["num_samples"] is not None:
+        conf["train_steps_per_epoch"] = conf["num_samples"] // conf["train_batch_size"]
+    else:  # use size of input sample
+        with h5py.File(conf["file"]) as f:
+            conf["num_samples"] = f["data"]["ZeroQuarkJetsFlag"].shape[0]
     conf["train_steps_per_epoch"] = conf["num_samples"] // conf["train_batch_size"]
     log.info("Training configuration: \n" + json.dumps(conf, indent=4, sort_keys=True))
 
@@ -140,6 +144,7 @@ def options():
     parser.add_argument("-nl", "--ndense", help="Number of dense layers.", default=1, type=int)
     parser.add_argument("-nd", "--nnode_per_dense", help="Number of nodes per dense layer.", default=30, type=int)
     parser.add_argument("-s", "--seed", help="Seed for TensorFlow and NumPy", default=None, type=int)
+    parser.add_argument("-ns", "--num_samples", help="Number of events", default=None, type=int)
     return parser.parse_args()
 
 if __name__ == "__main__":
