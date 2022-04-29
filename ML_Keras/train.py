@@ -61,12 +61,10 @@ def main(config = None):
         sys.exit(1)
 
     # training configuration
-    if "num_samples" in conf and conf["num_samples"] is not None:
-        conf["train_steps_per_epoch"] = conf["num_samples"] // conf["train_batch_size"]
-    else:  # use size of input sample
+    if "num_samples" not in conf or conf["num_samples"] is None:  # use size of input sample
         with h5py.File(conf["file"]) as hf:
             conf["num_samples"] = hf["nQuarkJets"]['values'].shape[0]
-        conf["train_steps_per_epoch"] = conf["num_samples"] // conf["train_batch_size"]
+    conf["train_steps_per_epoch"] = conf["num_samples"] // conf["train_batch_size"]
     log.info("Training configuration: \n" + json.dumps(conf, indent=4, sort_keys=True))
 
     # data set generators
