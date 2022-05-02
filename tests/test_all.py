@@ -5,8 +5,9 @@ def test_train(update_ref = False):
     import pandas as pd
     
     # Import train and evaluate modules
-    from train import main as train
-    from train import options
+    #sys.path.insert(1, '../') # insert at 1, 0 is the script path
+    from ML_Keras.train import main as train
+    from ML_Keras.train import options
 
     ops = options()
     conf = {
@@ -25,12 +26,12 @@ def test_train(update_ref = False):
     data = train(conf)[['loss', 'accuracy']]  # Temporary until I get reproducible val results
     data = data.round(decimals=4)
     if update_ref:  # save dataframe
-        data.to_csv('train.ref', index=False)
+        data.to_csv('tests/train.ref', index=False)
     # Load reference and check if result agrees with it
-    ref = pd.read_csv('train.ref')
+    ref = pd.read_csv('tests/train.ref')
     diff = data.compare(ref)
     if diff.size != 0:
-      print("ERROR: test result doesn't match the reference (train.ref), if differences are expected/understood, update the reference")
+      print("ERROR: test result doesn't match the reference (tests/train.ref), if differences are expected/understood, update the reference")
       print("Reference dataframe:")
       print(ref.head())
       print("New dataframe:")
