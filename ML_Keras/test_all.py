@@ -23,6 +23,7 @@ def test_train(update_ref = False):
         "seed" : 1
     }
     data = train(conf)[['loss', 'accuracy']]  # Temporary until I get reproducible val results
+    data = data.round(decimals=4)
     if update_ref:  # save dataframe
         data.to_csv('train.ref', index=False)
     # Load reference and check if result agrees with it
@@ -34,6 +35,8 @@ def test_train(update_ref = False):
       print(ref.head())
       print("New dataframe:")
       print(data.head())
+      print("Difference b/w dataframes:")
+      print(diff.head())
       sys.exit(1)
 
 if __name__ == '__main__':
