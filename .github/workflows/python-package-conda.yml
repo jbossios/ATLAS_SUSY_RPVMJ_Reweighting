@@ -40,4 +40,5 @@ jobs:
         conda install pandas
         conda install h5py
         conda install tensorflow
+        conda install matplotlib
         pytest
