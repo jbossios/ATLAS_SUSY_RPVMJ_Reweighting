@@ -14,6 +14,7 @@ import sys
 import logging
 import pandas as pd
 import random as python_random
+import numpy as np
 
 # custom imports
 try:
@@ -83,10 +84,11 @@ def main(config = None):
     # set seeds to get reproducible results (only if requested)
     if seed is not None:
         try:
+            random.seed(seed)
+            np.random.seed(seed)
             tf.random.set_seed(seed)
         except:  # deprecated in newer tf versions
             tf.keras.utils.set_random_seed(seed)
-        python_random.seed(seed)
 
     # make model
     model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=conf["learning_rate"])
