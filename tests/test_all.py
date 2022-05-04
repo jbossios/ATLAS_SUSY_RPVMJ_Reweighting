@@ -1,13 +1,13 @@
-def test_train(update_ref = False):
+import os
+import sys
+import pandas as pd
 
-    import os
-    import sys
-    import pandas as pd
-    
-    # Import train and evaluate modules
-    #sys.path.insert(1, '../') # insert at 1, 0 is the script path
-    from ML_Keras.train import main as train
-    from ML_Keras.train import options
+# Import train and evaluate modules
+sys.path.insert(1, '../')
+from ML_Keras.train import main as train
+from ML_Keras.train import options
+
+def test_train(ref_file = 'tests/train.ref', update_ref = False):
 
     ops = options()
     conf = {
@@ -26,12 +26,13 @@ def test_train(update_ref = False):
     data = train(conf)[['loss', 'accuracy']]  # Temporary until I get reproducible val results
     data = data.round(decimals=4)
     if update_ref:  # save dataframe
-        data.to_csv('tests/train.ref', index=False)
+        print('INFO: reference will be updated!')
+        data.to_csv(ref_file, index=False)
     # Load reference and check if result agrees with it
-    ref = pd.read_csv('tests/train.ref')
+    ref = pd.read_csv(ref_file)
     diff = data.compare(ref)
     if diff.size != 0:
-      print("ERROR: test result doesn't match the reference (tests/train.ref), if differences are expected/understood, update the reference")
+      print(f"ERROR: test result doesn't match the reference ({ref_file}), if differences are expected/understood, update the reference")
       print("Reference dataframe:")
       print(ref.head())
       print("New dataframe:")
@@ -41,4 +42,4 @@ def test_train(update_ref = False):
       sys.exit(1)
 
 if __name__ == '__main__':
-    test_train(False)
+    test_train('train.ref', False)

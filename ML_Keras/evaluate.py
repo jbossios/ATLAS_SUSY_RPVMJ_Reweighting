@@ -18,8 +18,8 @@ import sys
 import logging
 
 # custom code
-from get_data import get_full_data
-from make_model import make_model
+from ML_Keras.get_data import get_full_data
+from ML_Keras.make_model import make_model
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 

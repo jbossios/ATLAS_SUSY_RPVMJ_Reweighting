@@ -16,8 +16,12 @@ import pandas as pd
 import random as python_random
 
 # custom imports
-from .make_model import make_model
-from .get_data import get_data
+try:
+    from make_model import make_model
+    from get_data import get_data
+except:
+    from ML_Keras.make_model import make_model
+    from ML_Keras.get_data import get_data
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -121,7 +125,10 @@ def main(config = None):
 
     # Plot loss vs epochs (if nepochs > 1)
     if conf["nepochs"] > 1:
-        from ML_Keras.plotting_functions import plot_loss
+        try:
+            from plotting_functions import plot_loss
+        except:
+            from ML_Keras.plotting_functions import plot_loss
         data['epoch'] = history.epoch
         plot_loss(history)
 
