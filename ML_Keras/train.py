@@ -13,10 +13,15 @@ import os
 import sys
 import logging
 import pandas as pd
+import random as python_random
 
 # custom imports
-from make_model import make_model
-from get_data import get_data
+try:
+    from make_model import make_model
+    from get_data import get_data
+except:
+    from ML_Keras.make_model import make_model
+    from ML_Keras.get_data import get_data
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -78,6 +83,7 @@ def main(config = None):
     # set seeds to get reproducible results (only if requested)
     if seed is not None:
         tf.keras.utils.set_random_seed(seed)
+        python_random.seed(seed)
 
     # make model
     model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=conf["learning_rate"])
@@ -119,7 +125,10 @@ def main(config = None):
 
     # Plot loss vs epochs (if nepochs > 1)
     if conf["nepochs"] > 1:
-        from plotting_functions import plot_loss
+        try:
+            from plotting_functions import plot_loss
+        except:
+            from ML_Keras.plotting_functions import plot_loss
         data['epoch'] = history.epoch
         plot_loss(history)
 

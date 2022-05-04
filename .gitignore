@@ -9,3 +9,5 @@ checkpoints
 *~
 *.json
 *.pdf
+*.save
+*.pyc
