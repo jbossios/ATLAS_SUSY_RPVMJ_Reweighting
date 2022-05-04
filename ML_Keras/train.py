@@ -82,7 +82,10 @@ def main(config = None):
 
     # set seeds to get reproducible results (only if requested)
     if seed is not None:
-        tf.keras.utils.set_random_seed(seed)
+        try:
+            tf.keras.utils.set_seed(seed)
+        except:  # deprecated in newer tf versions
+            tf.keras.utils.set_random_seed(seed)
         python_random.seed(seed)
 
     # make model
