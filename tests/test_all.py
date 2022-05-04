@@ -11,7 +11,7 @@ def test_train(ref_file = 'tests/train.ref', update_ref = False):
 
     ops = options()
     conf = {
-        "file": "/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v3/mc16a_dijets_JZAll_for_reweighting.h5",
+        "file": "test.h5",
         "nepochs": 1,
 	"num_samples": ops.train_batch_size * 2,
         "train_batch_size": ops.train_batch_size,
@@ -42,4 +42,4 @@ def test_train(ref_file = 'tests/train.ref', update_ref = False):
       sys.exit(1)
 
 if __name__ == '__main__':
-    test_train('train.ref', False)
+    test_train('train.ref', True)
