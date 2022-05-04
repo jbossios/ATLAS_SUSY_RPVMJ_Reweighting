@@ -38,4 +38,5 @@ jobs:
         pip install -e .
         conda install pytest
         conda install pandas
+        conda install h5py
         pytest
