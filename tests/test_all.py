@@ -7,8 +7,8 @@ sys.path.insert(1, '../')
 from ML_Keras.train import main as train
 from ML_Keras.train import options
 
-def test_train(ref_file = 'tests/train.ref', update_ref = False):
 
+def test_train(ref_file = 'tests/train.ref', update_ref = False):
     ops = options()
     conf = {
         "file": "test.h5",
@@ -23,7 +23,11 @@ def test_train(ref_file = 'tests/train.ref', update_ref = False):
         "nnode_per_dense" : ops.nnode_per_dense,
         "seed" : 1
     }
-    data = train(conf)[['loss', 'accuracy']]  # Temporary until I get reproducible val results
+    try:
+        data = train(conf)[['loss', 'accuracy']]  # Temporary until I get reproducible val results
+    except:
+        conf["file"] = "tests/test.h5"
+        data = train(conf)[['loss', 'accuracy']]  # Temporary until I get reproducible val results
     data = data.round(decimals=4)
     if update_ref:  # save dataframe
         print('INFO: reference will be updated!')
@@ -32,14 +36,15 @@ def test_train(ref_file = 'tests/train.ref', update_ref = False):
     ref = pd.read_csv(ref_file)
     diff = data.compare(ref)
     if diff.size != 0:
-      print(f"ERROR: test result doesn't match the reference ({ref_file}), if differences are expected/understood, update the reference")
-      print("Reference dataframe:")
-      print(ref.head())
-      print("New dataframe:")
-      print(data.head())
-      print("Difference b/w dataframes:")
-      print(diff.head())
-      sys.exit(1)
+        print(f"ERROR: test result doesn't match the reference ({ref_file}), if differences are expected/understood, update the reference")
+        print("Reference dataframe:")
+        print(ref.head())
+        print("New dataframe:")
+        print(data.head())
+        print("Difference b/w dataframes:")
+        print(diff.head())
+        sys.exit(1)
+
 
 if __name__ == '__main__':
-    test_train('train.ref', True)
+    test_train('train.ref', False)
