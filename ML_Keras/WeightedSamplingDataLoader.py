@@ -9,7 +9,7 @@ class WeightedSamplingDataLoader(tf.data.Dataset):
         for iB in range(num_batches):
             start = time.time()
             idx = np.random.choice(range(0,len(probabilities)), size=batch_size, p = probabilities, replace = True)
-            print ("Time elapsed for idx:", time.time() - start)
+            print ("Time elapsed for idx:", time.time() - start) # roughly 2.5 seconds
             print(idx)
             start = time.time()
             samples = fileidx[idx]
@@ -17,7 +17,7 @@ class WeightedSamplingDataLoader(tf.data.Dataset):
             # get unique files and list of events per file
             files = np.unique(samples[:,0])
             events = [samples[np.where(samples[:,0] == i)][:,1] for i in files]
-            print ("Time elapsed middle:", time.time() - start)
+            print ("Time elapsed middle:", time.time() - start) # roughly 0.001 seconds
             # create batch
             x = []
             y = []
@@ -34,7 +34,7 @@ class WeightedSamplingDataLoader(tf.data.Dataset):
                     y.append(np.zeros((j[iE].shape[0])))      
             x = np.concatenate(x)
             y = np.concatenate(y)
-            print ("Time elapsed for getting data from files:", time.time() - start)
+            print ("Time elapsed for getting data from files:", time.time() - start) # roughly 2.5 - 4.2 seconds
             yield x, y
 
     def __new__(self, probabilities, fileidx, fileList, num_batches, batch_size):
