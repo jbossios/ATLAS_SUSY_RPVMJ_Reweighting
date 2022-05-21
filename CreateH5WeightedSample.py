@@ -8,26 +8,31 @@ def main():
 	ops = options()
 	fileList = handleInput(ops.inFile)
 
-	weights = []
-	fileidx = []
-	for iF, file in enumerate(fileList):
-	    print(f"File {iF}/{len(fileList)}")
-	    with h5py.File(file, "r") as hf:
-	        normweight = np.array(hf["normweight"]["normweight"]).flatten()
-	        # print(normweight)
-	        nevents = normweight.shape[0]
-	        weights.append(normweight)
-	        fileidx.append(np.stack([np.full((nevents),iF),np.arange(nevents)],-1))
-	weights = np.concatenate(weights)
-	fileidx = np.concatenate(fileidx)
-	np.savez("WeightSamplerDijets.npz",**{"weights":weights,"fileidx":fileidx})
+	# load or make file with all weights included
+	if ops.weightSampler:
+	    x = np.load(ops.weightSampler,allow_pickle=True)
+	    weights = x["weights"]
+	    fileidx = x["fileidx"]
+	else:
+		weights = []
+		fileidx = []
+		for iF, file in enumerate(fileList):
+		    print(f"File {iF}/{len(fileList)}")
+		    with h5py.File(file, "r") as hf:
+		        normweight = np.array(hf["normweight"]["normweight"]).flatten()
+		        # print(normweight)
+		        nevents = normweight.shape[0]
+		        weights.append(normweight)
+		        fileidx.append(np.stack([np.full((nevents),iF),np.arange(nevents)],-1))
+		weights = np.concatenate(weights)
+		fileidx = np.concatenate(fileidx)
+		np.savez("WeightSamplerDijets.npz",**{"weights":weights,"fileidx":fileidx})
 
 	probabilities = weights / weights.sum()
-	# print(probabilities)
+	n_files = 1
+
 	n_samples = 100
-
 	sample(probabilities, fileidx, fileList, n_samples, "test.npz")
-
 
 def sample(probabilities, fileidx, fileList, n_samples, outName):
     # get sample list
@@ -60,6 +65,7 @@ def options():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i",  "--inFile", help="Input file.", default=None)
     parser.add_argument("-o",  "--outDir", help="Output directory", default="./")
+    parser.add_argument("-w",  "--weightSampler", help="Already made file to sample weights from. If not provided then one will be made automatically.", default=None)
     return parser.parse_args()
 
 def handleInput(data):
