@@ -15,49 +15,88 @@ def main():
 	ops = options()
 	fileList = handleInput(ops.inFile)
 
-	# load or make file with all weights included
-	if ops.weightSampler:
-	    x = np.load(ops.weightSampler,allow_pickle=True)
-	    weights = x["weights"]
-	    fileidx = x["fileidx"]
-	else:
-		weights = []
-		fileidx = []
-		for iF, file in enumerate(fileList):
-		    print(f"File {iF}/{len(fileList)}")
-		    with h5py.File(file, "r") as hf:
-		        normweight = np.array(hf["normweight"]["normweight"]).flatten()
-		        # print(normweight)
-		        nevents = normweight.shape[0]
-		        weights.append(normweight)
-		        fileidx.append(np.stack([np.full((nevents),iF),np.arange(nevents)],-1))
-		weights = np.concatenate(weights)
-		fileidx = np.concatenate(fileidx)
-		np.savez("WeightSamplerDijets.npz",**{"weights":weights,"fileidx":fileidx})
+	# define regions
+	regions = {
+		"A" : { "weights" : [], "fileidx" : [], "cuts" : [ ["source/QGTaggerBDT", "le",  [0.5, 2]], ["EventVars/minAvgMass", "le",  0.5] ]},
+		"B" : { "weights" : [], "fileidx" : [], "cuts" : [ ["source/QGTaggerBDT", "le",  [0.5, 2]], ["EventVars/minAvgMass", "geq", 0.5] ]},
+		"C" : { "weights" : [], "fileidx" : [], "cuts" : [ ["source/QGTaggerBDT", "geq", [0.5, 2]], ["EventVars/minAvgMass", "le",  0.5] ]},
+		"D" : { "weights" : [], "fileidx" : [], "cuts" : [ ["source/QGTaggerBDT", "geq", [0.5, 2]], ["EventVars/minAvgMass", "geq", 0.5] ]}
+	}
 
-	probabilities = weights / weights.sum()
+	for iF, file in enumerate(fileList):
 
+	    print(f"File {iF}/{len(fileList)}")
 
+	    with h5py.File(file, "r") as hf:
+	    	
+	    	# pickup needed variables
+	        weights = np.array(hf["normweight/normweight"]).flatten()
+	        nevents = weights.shape[0]
+	        fileidx = np.stack([np.full((nevents),iF),np.arange(nevents)],-1)
+
+	        # apply cuts and append
+	        for key, val in regions.items():
+	        	passCuts = np.ones(weights.shape).astype(bool)
+	        	for (var, func, cut) in val["cuts"]:
+	        		# doCut = np.ones(passCuts.shape)
+	        		if "QGTaggerBDT" in var:
+	        			temp = doCut(np.array(hf[var]), "geq", cut[0]).sum(1) # cut on BDT score
+	        			passCuts = np.logical_and(passCuts, doCut(temp, func, cut[1])) # cut on number of quark tags
+        			elif "minAvgMass" in var:
+		        		passCuts = np.logical_and(passCuts, doCut(np.array(hf[var]), func, cut)) # cut on minAvgMass value
+	        	val["weights"].append(weights[passCuts])
+	        	val["fileidx"].append(fileidx[passCuts])
+
+	# prepare job configs
 	n_files = int(ops.n_total_events/ops.n_events_per_file)
 	configs = []
-	for iF in range(n_files):
-		configs.append({
-			"probabilities" : probabilities, 
-			"fileidx" : fileidx,
-			"fileList" : fileList,
-			"n_samples" : ops.n_events_per_file,
-			"outName" : os.path.join(ops.outDir, f"Dijets_Sampled_v{ops.version}_{iF}.npz")
-		})
+	for key, val in regions.items():
+
+		# concat and save
+		val["weights"] = np.concatenate(val["weights"])
+		val["fileidx"] = np.concatenate(val["fileidx"])
+		np.savez(f"{ops.sample}_Region{key}_SamplingWeights.npz",**{"weights":weights,"fileidx":fileidx})
+
+		# don't sample from null regions
+		if all(val["weights"] == 0):
+			print(f"Region {key} has all zero weights")
+			continue
+
+		# compute probabilities
+		val["probabilities"] = val["weights"] / (val["weights"].sum() + 10**-50)
+
+		# make conf
+		for iF in range(n_files):
+			configs.append({
+				"probabilities" : val["probabilities"], # this will make it so the same event can be used more than once
+				"fileidx" : val["fileidx"],
+				"fileList" : fileList,
+				"n_samples" : ops.n_events_per_file,
+				"outName" : os.path.join(ops.outDir, f"{ops.sample}_Region{key}_v{ops.version}_{iF}.npz")
+			})
 	
+	# launch sampling
 	if ops.ncpu > 1:
 		results = Pool(ncpu).map(add_normweight, configs)
 	else:
 		for conf in configs:
+			print(f"Creating {conf['outName']}")
 			sample(conf)
+
+def doCut(x, func, cut):
+	if func == "le":
+		return x < cut
+	elif func == "leq":
+		return x <= cut
+	elif func == "ge":
+		return x > cut
+	elif func == "geq":
+		return x >= cut
+	return np.ones(x.shape)
 
 def sample(conf):
     # get sample list
-    idx = np.random.choice(range(0,len(conf["probabilities"])), size=conf["n_samples"], p = conf["probabilities"], replace = True)
+    idx = np.random.choice(range(0,len(conf["probabilities"])), size=conf["n_samples"], p = conf["probabilities"], replace = False)
     samples = conf["fileidx"][idx]
     samples = samples[samples[:, 0].argsort()]
     # get unique files and list of events per file
@@ -87,6 +126,7 @@ def options():
     parser.add_argument("-i", "--inFile", help="Input file.", default=None)
     parser.add_argument("-o", "--outDir", help="Output directory", default="./")
     parser.add_argument("-w", "--weightSampler", help="Already made file to sample weights from. If not provided then one will be made automatically.", default=None)
+    parser.add_argument('-s', '--sample',  help="Sample name", default='Dijets')
     parser.add_argument("-v", '--version', help="File version", default='')
     parser.add_argument("-j", '--ncpu', help="Number of cores to use in multiprocessing", default=1, type=int)
     parser.add_argument("-nt", '--n_total_events', help="Total number of events to sample.", default=100, type=int)
