@@ -139,7 +139,7 @@ def handleInput(data):
     elif os.path.isfile(data) and ".txt" in os.path.basename(data):
         return sorted([line.strip() for line in open(data,"r")])
     elif os.path.isdir(data):
-        return sorted(os.listdir(data))
+        return sorted([os.path.join(data,i) for i in os.listdir(data)])
     elif "*" in data:
         return sorted(glob.glob(data))
     return []
