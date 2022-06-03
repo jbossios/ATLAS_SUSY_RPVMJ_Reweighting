@@ -137,9 +137,12 @@ def main(config = None):
     nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
     normweight = np.array(f['normweight']['normweight'])
 
+    print(f"Number of events: {minAvgMass.shape[0]}")
+
     # Reweight A -> C
     RegA = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
     RegC = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    print(f"Number of events in A and C: {RegA.sum()}, {RegC.sum()}")
 
     # isolate region
     RegA_ht = HT[RegA]
@@ -149,7 +152,9 @@ def main(config = None):
 
     # compute reweighted
     RegA_p = p[RegA].flatten()
-    RegA_reweighted = RegA_weights * RegA_p/(1-RegA_p + 10**-30)
+    RegA_rw = np.nan_to_num(RegA_p/(1-RegA_p),posinf=1)
+    RegA_reweighted = RegA_weights * RegA_rw
+    print(max(RegA_ht))
 
     # plot
     fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
@@ -158,7 +163,7 @@ def main(config = None):
     rx.set_ylim(0,2)
     ax.set_ylabel("Density of Events")
     # ax.set_yscale("log")
-    bins = np.linspace(7000, 13000, 20)
+    bins = np.linspace(0, 13000, 100)
     c0, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_weights, label = rf'RegA NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=True, histtype="step", lw=2)
     c1, bin_edges, _ = ax.hist(RegC_ht, bins = bins, weights = RegC_weights, label = rf'RegC NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=True, histtype="step", lw=2)
     c2, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_reweighted, label = rf'Reweight RegA $\rightarrow$ RegC', color = colors[2], density=True, histtype="step", lw=2) 
@@ -169,10 +174,10 @@ def main(config = None):
     # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,'reweightAtoC.pdf'), bbox_inches="tight")
 
-
     # Reweight B -> D
     RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
     RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
 
     # isolate region
     RegB_ht = HT[RegB]
@@ -182,7 +187,8 @@ def main(config = None):
 
     # compute reweighted
     RegB_p = p[RegB].flatten()
-    RegB_reweighted = RegB_weights * RegB_p/(1-RegB_p + 10**-30)
+    RegB_rw = np.nan_to_num(RegB_p/(1-RegB_p),posinf=1)
+    RegB_reweighted = RegB_weights * RegB_rw
 
     # plot
     fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
@@ -191,7 +197,7 @@ def main(config = None):
     rx.set_ylim(0,2)
     ax.set_ylabel("Density of Events")
     # ax.set_yscale("log")
-    bins = np.linspace(7000, 13000, 20)
+    bins = np.linspace(0, 13000, 100)
     c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=True, histtype="step", lw=2)
     c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=True, histtype="step", lw=2)
     c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_reweighted, label = rf'Reweight RegB $\rightarrow$ RegD', color = colors[2], density=True, histtype="step", lw=2) 
