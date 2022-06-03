@@ -19,10 +19,12 @@ import numpy as np
 # custom imports
 try:
     from make_model import make_model
-    from get_data import get_data
+    # from get_data import get_data
+    from get_sample import get_sample
 except:
     from ML_Keras.make_model import make_model
-    from ML_Keras.get_data import get_data
+    # from ML_Keras.get_data import get_data
+    from ML_Keras.get_sample import get_sample
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -69,7 +71,8 @@ def main(config = None):
     # training configuration
     if "num_samples" not in conf or conf["num_samples"] is None:  # use size of input sample
         with h5py.File(conf["file"]) as hf:
-            conf["num_samples"] = hf["nQuarkJets"]['values'].shape[0]
+            # conf["num_samples"] = hf["nQuarkJets"]['values'].shape[0]
+            conf["num_samples"] = hf['EventVars']['HT'].shape[0]
     conf["train_steps_per_epoch"] = conf["num_samples"] // conf["train_batch_size"]
     log.info("Training configuration: \n" + json.dumps(conf, indent=4, sort_keys=True))
 
@@ -77,9 +80,29 @@ def main(config = None):
     seed = None
     if "seed" in conf and conf["seed"] is not None:
         seed = conf["seed"]
-    train_data_gen = get_data(conf["file"], conf["nepochs"], conf["train_batch_size"], seed)
-    # sample validation data from the same probability density function (but generated val data is statistically independent w.r.t training data)
-    val_data_gen = get_data(conf["file"], conf["nepochs"], conf["val_batch_size"], seed+1 if seed is not None else None)
+    # train_data_gen = get_data(conf["file"], conf["nepochs"], conf["train_batch_size"], seed)
+    # # sample validation data from the same probability density function (but generated val data is statistically independent w.r.t training data)
+    # val_data_gen = get_data(conf["file"], conf["nepochs"], conf["val_batch_size"], seed+1 if seed is not None else None)
+
+    # load this once
+    
+    f = h5py.File(conf["file"],"r")
+    # cuts used
+    cut_minAvgMass = 750
+    cut_QGTaggerBDT = 0.0 
+    cut_nQuarkJets = 2
+    # precompute indices
+    minAvgMass = np.array(f['EventVars']['minAvgMass'])
+    low_minAvgMass = np.where(minAvgMass < cut_minAvgMass)[0] 
+    # only keep these loaded in memory
+    minAvgMass = minAvgMass[low_minAvgMass]
+    normweight = np.array(f['normweight']['normweight'])[low_minAvgMass]
+    nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)[low_minAvgMass]
+    # fourmom = np.stack([f['source']['mass'], f['source']['pt'], f['source']['eta'], f['source']['phi']],-1)[low_minAvgMass]
+    HT = np.array(f['EventVars']['HT'])[low_minAvgMass] 
+    probabilities = normweight / normweight.sum()
+    train_data_gen = get_sample(HT, nQuarkJets, probabilities, conf["train_batch_size"], cut_nQuarkJets) # update to four momentum when ready
+    val_data_gen = get_sample(HT, nQuarkJets, probabilities, conf["val_batch_size"], cut_nQuarkJets)
 
     # set seeds to get reproducible results (only if requested)
     if seed is not None:
