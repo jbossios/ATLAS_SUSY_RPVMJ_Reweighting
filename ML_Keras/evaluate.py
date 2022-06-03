@@ -36,6 +36,15 @@ plt.rcParams['figure.figsize'] = (4,4)
 plt.rcParams['figure.dpi'] = 120
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['text.usetex'] = True
+colors = [
+    "#E24A33", # orange
+    "#7A68A6", # purple
+    "#348ABD", # blue
+    "#188487", # turquoise
+    "#A60628", # red
+    "#CF4457", # pink
+    "#467821", # green
+]
 
 def main(config = None):
 
@@ -144,20 +153,20 @@ def main(config = None):
 
     # plot
     fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
-    rx.set_ylabel("Ratio")
+    rx.set_ylabel("Ratio\nTo RegC")
     rx.set_xlabel(r"H$_{\mathrm{T}}$ [GeV]")
     rx.set_ylim(0,2)
     ax.set_ylabel("Density of Events")
     # ax.set_yscale("log")
     bins = np.linspace(7000, 13000, 20)
-    c0, bin_edges, _ = ax.hist(RegA_ht, bins = bins, alpha = 0.5, weights = RegA_weights, label = rf'RegA NQuarkJets $<$ {cut_nQuarkJets}', color = 'red', density=True, histtype="step", lw=2)
-    c1, bin_edges, _ = ax.hist(RegC_ht, bins = bins, alpha = 0.5, weights = RegC_weights, label = rf'RegC NQuarkJets $\geq$ {cut_nQuarkJets}', color = 'blue', density=True, histtype="step", lw=2)
-    c2, bin_edges, _ = ax.hist(RegA_ht, bins = bins, alpha = 0.5, weights = RegA_reweighted, label = rf'Reweight RegA $\rightarrow$ RegC', color = 'yellow', density=True, histtype="step", lw=2) 
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegA $/$ RegC', color = 'gray', lw=1)
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegA $/$ RegC', color = 'black', lw=1)
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="gray",alpha=0.8)
+    c0, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_weights, label = rf'RegA NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=True, histtype="step", lw=2)
+    c1, bin_edges, _ = ax.hist(RegC_ht, bins = bins, weights = RegC_weights, label = rf'RegC NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=True, histtype="step", lw=2)
+    c2, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_reweighted, label = rf'Reweight RegA $\rightarrow$ RegC', color = colors[2], density=True, histtype="step", lw=2) 
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegA $/$ RegC', color = colors[0], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegA $/$ RegC', color = colors[2], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
     ax.legend(title=rf"minAvgMass $<$ {cut_minAvgMass} GeV", loc="upper left", prop={'size': 8}, framealpha=0.0)
-    rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
+    # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,'reweightAtoC.pdf'), bbox_inches="tight")
 
 
@@ -177,20 +186,20 @@ def main(config = None):
 
     # plot
     fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
-    rx.set_ylabel("Ratio")
+    rx.set_ylabel("Ratio\nTo RegD")
     rx.set_xlabel(r"H$_{\mathrm{T}}$ [GeV]")
     rx.set_ylim(0,2)
     ax.set_ylabel("Density of Events")
     # ax.set_yscale("log")
     bins = np.linspace(7000, 13000, 20)
-    c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, alpha = 0.5, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = 'red', density=True, histtype="step", lw=2)
-    c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, alpha = 0.5, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = 'blue', density=True, histtype="step", lw=2)
-    c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, alpha = 0.5, weights = RegB_reweighted, label = rf'Reweight RegB $\rightarrow$ RegD', color = 'yellow', density=True, histtype="step", lw=2) 
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegB $/$ RegD', color = 'gray', lw=1)
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegB $/$ RegD', color = 'black', lw=1)
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="gray",alpha=0.8)
+    c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=True, histtype="step", lw=2)
+    c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=True, histtype="step", lw=2)
+    c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_reweighted, label = rf'Reweight RegB $\rightarrow$ RegD', color = colors[2], density=True, histtype="step", lw=2) 
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegB $/$ RegD', color = colors[0], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegB $/$ RegD', color = colors[2], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
     ax.legend(title=rf"minAvgMass $\geq$ {cut_minAvgMass} GeV", loc="upper left", prop={'size': 8}, framealpha=0.0)
-    rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
+    # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,'reweightBtoD.pdf'), bbox_inches="tight")
 
     return p  # return predicted values for CI tests
