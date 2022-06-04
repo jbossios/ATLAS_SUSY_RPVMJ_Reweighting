@@ -114,10 +114,12 @@ def main(config = None):
     # only keep these loaded in memory
     minAvgMass = minAvgMass[low_minAvgMass]
     normweight = np.array(f['normweight']['normweight'])[low_minAvgMass]
-    normweight = np.ones(normweight.shape)
+    #normweight = np.ones(normweight.shape)
     nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)[low_minAvgMass]
     # fourmom = np.stack([f['source']['mass'], f['source']['pt'], f['source']['eta'], f['source']['phi']],-1)[low_minAvgMass]
     HT = np.array(f['EventVars']['HT'])[low_minAvgMass] 
+    # standardize
+    HT = (HT - np.mean(HT))/np.std(HT)
     Y = np.stack([nQuarkJets >= cut_nQuarkJets, normweight],axis=-1)
     HT_train, HT_test, Y_train, Y_test = train_test_split(HT, Y, test_size=0.5, shuffle=True)
     print(f"Train shapes ({HT_train.shape},{Y_train.shape}), Test shapes ({HT_test.shape},{Y_test.shape})")

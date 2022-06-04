@@ -125,8 +125,8 @@ def main(config = None):
     # make prediction
     f = h5py.File(conf["file"],"r")
     HT = np.array(f['EventVars']['HT'])
-    p = model.predict(HT)
-    print(np.mean(p),np.std(p))
+    #p = model.predict(HT)
+    #print(np.mean(p),np.std(p))
 
     # cuts used
     cut_minAvgMass = 750
@@ -150,10 +150,11 @@ def main(config = None):
     RegC_ht = HT[RegC]
     RegC_weights = normweight[RegC]
 
-    # compute reweighted
-    RegA_p = p[RegA].flatten()
+    # compute reweighted 
+    RegA_p = model.predict((RegA_ht-np.mean(RegA_ht))/np.std(RegA_ht)).flatten() #p[RegA].flatten()
     RegA_rw = np.nan_to_num(RegA_p/(1-RegA_p),posinf=1)
-    RegA_reweighted = RegA_weights / RegA_rw
+    print(f"RegA_rw: {np.mean(RegA_rw)},{np.std(RegA_rw)}")
+    RegA_reweighted = RegA_weights * RegA_rw
     print(max(RegA_ht))
 
     # plot
@@ -164,9 +165,9 @@ def main(config = None):
     ax.set_ylabel("Density of Events")
     ax.set_yscale("log")
     bins = np.linspace(0, 13000, 100)
-    c0, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_weights, label = rf'RegA NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=True, histtype="step", lw=2)
-    c1, bin_edges, _ = ax.hist(RegC_ht, bins = bins, weights = RegC_weights, label = rf'RegC NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=True, histtype="step", lw=2)
-    c2, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_reweighted, label = rf'Reweight RegA $\rightarrow$ RegC', color = colors[2], density=True, histtype="step", lw=2) 
+    c0, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_weights, label = rf'RegA NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=False, histtype="step", lw=2)
+    c1, bin_edges, _ = ax.hist(RegC_ht, bins = bins, weights = RegC_weights, label = rf'RegC NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=False, histtype="step", lw=2)
+    c2, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_reweighted, label = rf'Reweight RegA $\rightarrow$ RegC', color = colors[2], density=False, histtype="step", lw=2) 
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegA $/$ RegC', color = colors[0], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegA $/$ RegC', color = colors[2], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
@@ -186,9 +187,10 @@ def main(config = None):
     RegD_weights = normweight[RegD]
 
     # compute reweighted
-    RegB_p = p[RegB].flatten()
+    RegB_p = model.predict((RegB_ht-np.mean(RegB_ht))/np.std(RegB_ht)).flatten() #p[RegB].flatten()
     RegB_rw = np.nan_to_num(RegB_p/(1-RegB_p),posinf=1)
-    RegB_reweighted = RegB_weights / RegB_rw
+    print(f"RegB_rw: {np.mean(RegB_rw)},{np.std(RegB_rw)}")
+    RegB_reweighted = RegB_weights * RegB_rw
 
     # plot
     fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
@@ -198,17 +200,21 @@ def main(config = None):
     ax.set_ylabel("Density of Events")
     ax.set_yscale("log")
     bins = np.linspace(0, 13000, 100)
-    c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=True, histtype="step", lw=2)
-    c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=True, histtype="step", lw=2)
-    c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_reweighted, label = rf'Reweight RegB $\rightarrow$ RegD', color = colors[2], density=True, histtype="step", lw=2) 
+    c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=False, histtype="step", lw=2)
+    c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=False, histtype="step", lw=2)
+    c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_reweighted, label = rf'Reweight RegB $\rightarrow$ RegD', color = colors[2], density=False, histtype="step", lw=2) 
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegB $/$ RegD', color = colors[0], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegB $/$ RegD', color = colors[2], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
     ax.legend(title=rf"minAvgMass $\geq$ {cut_minAvgMass} GeV", loc="upper left", prop={'size': 8}, framealpha=0.0)
     # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,'reweightBtoD.pdf'), bbox_inches="tight")
-
-    return p  # return predicted values for CI tests
+    
+    np.savez("preds.npz",**{"RegA_ht":RegA_ht,"RegA_weights":RegA_weights,"RegA_p":RegA_p,"RegA_reweighted":RegA_reweighted,
+                            "RegC_ht":RegC_ht,"RegC_weights":RegC_weights,
+                            "RegB_ht":RegB_ht,"RegB_weights":RegB_weights,"RegB_p":RegB_p,"RegB_reweighted":RegB_reweighted,
+                            "RegD_ht":RegD_ht,"RegD_weights":RegD_weights})
+    return RegA_p, RegB_p  # return predicted values for CI tests
 
 def options():
     parser = argparse.ArgumentParser()
