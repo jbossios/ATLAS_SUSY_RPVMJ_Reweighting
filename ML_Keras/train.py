@@ -6,6 +6,7 @@ Date: Monday April 25, 2022
 # python imports
 import h5py
 import tensorflow as tf
+import tensorflow.keras.backend as K
 import argparse
 import json
 import datetime
@@ -15,6 +16,7 @@ import logging
 import pandas as pd
 import random as python_random
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 # custom imports
 try:
@@ -30,6 +32,17 @@ except:
 physical_devices = tf.config.list_physical_devices('GPU') 
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+def weighted_binary_crossentropy(y_true, y_pred):
+    weights = tf.gather(y_true, [1], axis=1) # event weights
+    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
+
+    # Clip the prediction value to prevent NaN's and Inf's
+    epsilon = K.epsilon()
+    y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
+    t_loss = -weights * ((y_true) * K.log(y_pred) +
+                         (1 - y_true) * K.log(1 - y_pred))
+    return K.mean(t_loss)
 
 def main(config = None):
 
@@ -89,7 +102,11 @@ def main(config = None):
     f = h5py.File(conf["file"],"r")
     # cuts used
     cut_minAvgMass = 750
-    cut_QGTaggerBDT = 0.0 
+    # grep ScoreCut /cvmfs/atlas.cern.ch/repo/sw/software/21.2/AnalysisBase/21.2.214/InstallArea/x86_64-centos7-gcc8-opt/data/BoostedJetTaggers/JetQGTaggerBDT/JetQGTaggerBDT*
+    # 50%: (x<200)*(-0.000714*x-0.0121) + (x>=200)*-0.155
+    # 80%: 0.05
+    # 90%: 0.14
+    cut_QGTaggerBDT = 0.14
     cut_nQuarkJets = 2
     # precompute indices
     minAvgMass = np.array(f['EventVars']['minAvgMass'])
@@ -97,13 +114,20 @@ def main(config = None):
     # only keep these loaded in memory
     minAvgMass = minAvgMass[low_minAvgMass]
     normweight = np.array(f['normweight']['normweight'])[low_minAvgMass]
+    normweight = np.ones(normweight.shape)
     nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)[low_minAvgMass]
     # fourmom = np.stack([f['source']['mass'], f['source']['pt'], f['source']['eta'], f['source']['phi']],-1)[low_minAvgMass]
     HT = np.array(f['EventVars']['HT'])[low_minAvgMass] 
-    probabilities = normweight / normweight.sum()
-    train_data_gen = get_sample(HT, nQuarkJets, probabilities, conf["train_batch_size"], cut_nQuarkJets) # update to four momentum when ready
-    val_data_gen = get_sample(HT, nQuarkJets, probabilities, conf["val_batch_size"], cut_nQuarkJets)
+    Y = np.stack([nQuarkJets >= cut_nQuarkJets, normweight],axis=-1)
+    HT_train, HT_test, Y_train, Y_test = train_test_split(HT, Y, test_size=0.5, shuffle=True)
+    print(f"Train shapes ({HT_train.shape},{Y_train.shape}), Test shapes ({HT_test.shape},{Y_test.shape})")
+    print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
 
+    # probabilities = normweight / normweight.sum()
+    # probabilities = np.ones(normweight.shape)/normweight.shape[0] # uniform probability but weight the loss function
+    # train_data_gen = get_sample(HT, nQuarkJets, normweight, probabilities, conf["train_batch_size"], cut_nQuarkJets) # update to four momentum when ready
+    # val_data_gen = get_sample(HT, nQuarkJets, normweight, probabilities, conf["val_batch_size"], cut_nQuarkJets)
+    
     # set seeds to get reproducible results (only if requested)
     if seed is not None:
         try:
@@ -114,14 +138,14 @@ def main(config = None):
             tf.keras.utils.set_random_seed(seed)
 
     # make model
-    model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=conf["learning_rate"])
+    model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=conf["learning_rate"], loss=weighted_binary_crossentropy)
     model.summary()
 
     # make callbacks
     callbacks = []
     # EarlyStopping
     early_stopping = tf.keras.callbacks.EarlyStopping(
-        patience=10, mode="min", restore_best_weights=True, monitor="val_loss"
+        patience=30, mode="min", restore_best_weights=True #, monitor="val_loss"
     )
     callbacks.append(early_stopping)
     # ModelCheckpoint
@@ -137,14 +161,23 @@ def main(config = None):
     callbacks.append(tf.keras.callbacks.TerminateOnNaN())
 
     # train
+    # history = model.fit(
+    #     train_data_gen,
+    #     steps_per_epoch=conf["train_steps_per_epoch"],
+    #     epochs=conf["nepochs"],
+    #     callbacks=callbacks,
+    #     verbose=1,
+    #     validation_data=val_data_gen,
+    #     validation_steps=conf["validation_steps"]
+    # )
+
     history = model.fit(
-        train_data_gen,
-        steps_per_epoch=conf["train_steps_per_epoch"],
+        HT_train, Y_train,
+        batch_size=ops.train_batch_size,
         epochs=conf["nepochs"],
         callbacks=callbacks,
         verbose=1,
-        validation_data=val_data_gen,
-        validation_steps=conf["validation_steps"]
+        validation_data=(HT_test,Y_test)
     )
 
     # Get training history

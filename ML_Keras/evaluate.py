@@ -75,7 +75,7 @@ def main(config = None):
         sys.exit(1)
 
     # load model
-    model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=1e-3)
+    model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=1e-3, loss=tf.keras.losses.BinaryCrossentropy())
     model.summary()
     # if checkpoint directory provided use the latest
     if os.path.isdir(ops.model_weights):
@@ -153,7 +153,7 @@ def main(config = None):
     # compute reweighted
     RegA_p = p[RegA].flatten()
     RegA_rw = np.nan_to_num(RegA_p/(1-RegA_p),posinf=1)
-    RegA_reweighted = RegA_weights * RegA_rw
+    RegA_reweighted = RegA_weights / RegA_rw
     print(max(RegA_ht))
 
     # plot
@@ -162,7 +162,7 @@ def main(config = None):
     rx.set_xlabel(r"H$_{\mathrm{T}}$ [GeV]")
     rx.set_ylim(0,2)
     ax.set_ylabel("Density of Events")
-    # ax.set_yscale("log")
+    ax.set_yscale("log")
     bins = np.linspace(0, 13000, 100)
     c0, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_weights, label = rf'RegA NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=True, histtype="step", lw=2)
     c1, bin_edges, _ = ax.hist(RegC_ht, bins = bins, weights = RegC_weights, label = rf'RegC NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=True, histtype="step", lw=2)
@@ -188,7 +188,7 @@ def main(config = None):
     # compute reweighted
     RegB_p = p[RegB].flatten()
     RegB_rw = np.nan_to_num(RegB_p/(1-RegB_p),posinf=1)
-    RegB_reweighted = RegB_weights * RegB_rw
+    RegB_reweighted = RegB_weights / RegB_rw
 
     # plot
     fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
@@ -196,7 +196,7 @@ def main(config = None):
     rx.set_xlabel(r"H$_{\mathrm{T}}$ [GeV]")
     rx.set_ylim(0,2)
     ax.set_ylabel("Density of Events")
-    # ax.set_yscale("log")
+    ax.set_yscale("log")
     bins = np.linspace(0, 13000, 100)
     c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=True, histtype="step", lw=2)
     c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=True, histtype="step", lw=2)

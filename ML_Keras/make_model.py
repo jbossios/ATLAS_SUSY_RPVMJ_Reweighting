@@ -20,7 +20,7 @@ def make_model(**kargs):
     # Compile model
     model.compile(
         optimizer=tf.optimizers.Adam(learning_rate=kargs["learning_rate"]),
-        loss=tf.keras.losses.BinaryCrossentropy(),
+        loss=kargs["loss"], #tf.keras.losses.BinaryCrossentropy(),
         metrics=["accuracy"],
     )
 
