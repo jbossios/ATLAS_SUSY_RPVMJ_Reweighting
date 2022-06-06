@@ -17,6 +17,7 @@ import tensorflow as tf
 import os
 import sys
 import logging
+import glob
 
 # custom code
 try:
@@ -74,12 +75,21 @@ def main(config = None):
         log.error('ERROR: no model weights were provided, exiting')
         sys.exit(1)
 
+    # make prediction
+    f = h5py.File(conf["file"],"r")
+    HT = np.array(f['EventVars']['HT'])
+    x = np.stack([np.array(f['EventVars']['HT']),np.array(f['EventVars']['deta']),np.array(f['EventVars']['djmass']),np.array(f['EventVars']['minAvgMass'])],-1)
+
     # load model
-    model = make_model(input_dim=conf["input_dim"], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=1e-3, loss=tf.keras.losses.BinaryCrossentropy())
+    model = make_model(input_dim=x.shape[1], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=1e-3, loss=tf.keras.losses.BinaryCrossentropy())
     model.summary()
     # if checkpoint directory provided use the latest
     if os.path.isdir(ops.model_weights):
         latest = tf.train.latest_checkpoint(ops.model_weights)
+        log.info(f"Using latest weights from checkpoint directory: {latest}")
+        model.load_weights(latest).expect_partial()
+    elif ops.model_weights == "1":
+        latest = tf.train.latest_checkpoint(glob.glob("checkpoints/*")[-1])
         log.info(f"Using latest weights from checkpoint directory: {latest}")
         model.load_weights(latest).expect_partial()
     else:
@@ -123,14 +133,20 @@ def main(config = None):
 
 
     # make prediction
-    f = h5py.File(conf["file"],"r")
-    HT = np.array(f['EventVars']['HT'])
-    #p = model.predict(HT)
+    #f = h5py.File(conf["file"],"r")
+    #HT = np.array(f['EventVars']['HT'])
+    #x = np.stack([np.array(f['EventVars']['HT']),np.array(f['EventVars']['deta']),np.array(f['EventVars']['djmass'])],-1) #np.array(f['EventVars']['minAvgMass'])
+    #x = (x-np.mean(x,0))/np.std(x,0)
+    #p = model.predict(x)
     #print(np.mean(p),np.std(p))
 
     # cuts used
     cut_minAvgMass = 750
-    cut_QGTaggerBDT = 0.0 
+    # grep ScoreCut /cvmfs/atlas.cern.ch/repo/sw/software/21.2/AnalysisBase/21.2.214/InstallArea/x86_64-centos7-gcc8-opt/data/BoostedJetTaggers/JetQGTaggerBDT/JetQGTaggerBDT*
+    # 50%: (x<200)*(-0.000714*x-0.0121) + (x>=200)*-0.155
+    # 80%: 0.05
+    # 90%: 0.14
+    cut_QGTaggerBDT = 0.14
     cut_nQuarkJets = 2
 
     minAvgMass = np.array(f['EventVars']['minAvgMass'])
@@ -151,11 +167,15 @@ def main(config = None):
     RegC_weights = normweight[RegC]
 
     # compute reweighted 
-    RegA_p = model.predict((RegA_ht-np.mean(RegA_ht))/np.std(RegA_ht)).flatten() #p[RegA].flatten()
+    RegA_x = x[RegA]
+    RegA_p = model.predict((RegA_x-np.mean(RegA_x,0))/np.std(RegA_x,0)).flatten() #p[RegA].flatten()
+    #RegA_p = p[RegA].flatten()
     RegA_rw = np.nan_to_num(RegA_p/(1-RegA_p),posinf=1)
     print(f"RegA_rw: {np.mean(RegA_rw)},{np.std(RegA_rw)}")
     RegA_reweighted = RegA_weights * RegA_rw
     print(max(RegA_ht))
+    # get RegC predictions
+    RegC_p = -999 #model.predict((x[RegC]_x-np.mean(x[RegC],0))/np.std(x[RegC],0)).flatten()
 
     # plot
     fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
@@ -171,50 +191,54 @@ def main(config = None):
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegA $/$ RegC', color = colors[0], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegA $/$ RegC', color = colors[2], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
-    ax.legend(title=rf"minAvgMass $<$ {cut_minAvgMass} GeV", loc="upper left", prop={'size': 8}, framealpha=0.0)
+    ax.legend(title=rf"minAvgMass $<$ {cut_minAvgMass} GeV", loc="upper right", prop={'size': 8}, framealpha=0.0)
     # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,'reweightAtoC.pdf'), bbox_inches="tight")
 
     # Reweight B -> D
-    RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-    RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-    print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
+    # RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
+    # RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    # print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
 
-    # isolate region
-    RegB_ht = HT[RegB]
-    RegB_weights = normweight[RegB]
-    RegD_ht = HT[RegD]
-    RegD_weights = normweight[RegD]
+    # # isolate region
+    # RegB_ht = HT[RegB]
+    # RegB_weights = normweight[RegB]
+    # RegD_ht = HT[RegD]
+    # RegD_weights = normweight[RegD]
 
-    # compute reweighted
-    RegB_p = model.predict((RegB_ht-np.mean(RegB_ht))/np.std(RegB_ht)).flatten() #p[RegB].flatten()
-    RegB_rw = np.nan_to_num(RegB_p/(1-RegB_p),posinf=1)
-    print(f"RegB_rw: {np.mean(RegB_rw)},{np.std(RegB_rw)}")
-    RegB_reweighted = RegB_weights * RegB_rw
+    # # compute reweighted
+    # RegB_p = model.predict((RegB_ht-np.mean(RegB_ht))/np.std(RegB_ht)).flatten() #p[RegB].flatten()
+    # #RegB_p = p[RegB].flatten()
+    # RegB_rw = np.nan_to_num(RegB_p/(1-RegB_p),posinf=1)
+    # print(f"RegB_rw: {np.mean(RegB_rw)},{np.std(RegB_rw)}")
+    # RegB_reweighted = RegB_weights * RegB_rw
+    # # get RegD predictions
+    # # RegD_p = model.predict((RegD_ht-np.mean(RegD_ht))/np.std(RegD_ht)).flatten()
+    # RegD_p = -999 # p[RegD].flatten()
 
-    # plot
-    fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
-    rx.set_ylabel("Ratio\nTo RegD")
-    rx.set_xlabel(r"H$_{\mathrm{T}}$ [GeV]")
-    rx.set_ylim(0,2)
-    ax.set_ylabel("Density of Events")
-    ax.set_yscale("log")
-    bins = np.linspace(0, 13000, 100)
-    c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=False, histtype="step", lw=2)
-    c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=False, histtype="step", lw=2)
-    c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_reweighted, label = rf'Reweight RegB $\rightarrow$ RegD', color = colors[2], density=False, histtype="step", lw=2) 
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegB $/$ RegD', color = colors[0], lw=1)
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegB $/$ RegD', color = colors[2], lw=1)
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
-    ax.legend(title=rf"minAvgMass $\geq$ {cut_minAvgMass} GeV", loc="upper left", prop={'size': 8}, framealpha=0.0)
-    # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
-    plt.savefig(os.path.join(ops.outDir,'reweightBtoD.pdf'), bbox_inches="tight")
+    # # plot
+    # fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
+    # rx.set_ylabel("Ratio\nTo RegD")
+    # rx.set_xlabel(r"H$_{\mathrm{T}}$ [GeV]")
+    # rx.set_ylim(0,2)
+    # ax.set_ylabel("Density of Events")
+    # ax.set_yscale("log")
+    # bins = np.linspace(0, 13000, 100)
+    # c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=False, histtype="step", lw=2)
+    # c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=False, histtype="step", lw=2)
+    # c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_reweighted, label = rf'Reweight RegB $\rightarrow$ RegD', color = colors[2], density=False, histtype="step", lw=2) 
+    # rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegB $/$ RegD', color = colors[0], lw=1)
+    # rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegB $/$ RegD', color = colors[2], lw=1)
+    # rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
+    # ax.legend(title=rf"minAvgMass $\geq$ {cut_minAvgMass} GeV", loc="upper left", prop={'size': 8}, framealpha=0.0)
+    # # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
+    # plt.savefig(os.path.join(ops.outDir,'reweightBtoD.pdf'), bbox_inches="tight")
     
     np.savez("preds.npz",**{"RegA_ht":RegA_ht,"RegA_weights":RegA_weights,"RegA_p":RegA_p,"RegA_reweighted":RegA_reweighted,
-                            "RegC_ht":RegC_ht,"RegC_weights":RegC_weights,
-                            "RegB_ht":RegB_ht,"RegB_weights":RegB_weights,"RegB_p":RegB_p,"RegB_reweighted":RegB_reweighted,
-                            "RegD_ht":RegD_ht,"RegD_weights":RegD_weights})
-    return RegA_p, RegB_p  # return predicted values for CI tests
+                            "RegC_ht":RegC_ht,"RegC_weights":RegC_weights,"RegC_p":RegC_p}) #,
+                            # "RegB_ht":RegB_ht,"RegB_weights":RegB_weights,"RegB_p":RegB_p,"RegB_reweighted":RegB_reweighted,
+                            # "RegD_ht":RegD_ht,"RegD_weights":RegD_weights,"RegD_p":RegD_p})
+    return RegA_p #, RegB_p  # return predicted values for CI tests
 
 def options():
     parser = argparse.ArgumentParser()
