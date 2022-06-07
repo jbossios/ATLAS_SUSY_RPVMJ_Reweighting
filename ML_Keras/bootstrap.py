@@ -84,7 +84,10 @@ def main(config = None):
     # Create cuts to Reweight A -> C
     RegA = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
     RegC = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
+    RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
     print(f"Number of events in A and C: {RegA.sum()}, {RegC.sum()}")
+    print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
     del minAvgMass, nQuarkJets
     gc.collect()
 
@@ -95,29 +98,40 @@ def main(config = None):
     RegC_x = x[RegC]
     RegC_weights = normweight[RegC]
     RegC_y = np.ones(RegC_weights.shape)
+    # just for evaluation get region B and D
+    RegB_x = x[RegB]
+    RegD_x = x[RegD]
     del x, normweight
     gc.collect()
 
     # save number of events
-    RegA_nevents = RegA_x.shape[0]
-    RegC_nevents = RegC_x.shape[0]
+    # RegA_nevents = RegA_x.shape[0]
+    # RegC_nevents = RegC_x.shape[0]
 
     # concatenate
-    X = np.concatenate([RegA_x,RegC_x])
-    Y = np.concatenate([RegA_y,RegC_y])
-    W = np.concatenate([RegA_weights,RegC_weights])
-    Y = np.stack([Y,W],axis=-1)
-    del RegA_x, RegA_weights, RegA_y, RegC_x, RegC_weights, RegC_y
-    gc.collect()
+    # X = np.concatenate([RegA_x,RegC_x])
+    # Y = np.concatenate([RegA_y,RegC_y])
+    # W = np.concatenate([RegA_weights,RegC_weights])
+    # Y = np.stack([Y,W],axis=-1)
+    # del RegA_x, RegA_weights, RegA_y, RegC_x, RegC_weights, RegC_y
+    # gc.collect()
 
     # standardize
-    X = (X - np.mean(X,0))/np.std(X,0)
-    print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
+    # X = (X - np.mean(X,0))/np.std(X,0)
+    # print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
 
     # prepare confs
     confs = []
     for iB in range(ops.num_bootstraps):
-        confs.append({"iB":iB,"X":X,"Y":Y,"bootstrap_path":bootstrap_path,"RegA_nevents":RegA_nevents, "RegC_nevents":RegC_nevents})
+        # confs.append({"iB":iB,"X":X,"Y":Y,"bootstrap_path":bootstrap_path,"RegA_nevents":RegA_nevents, "RegC_nevents":RegC_nevents})
+        confs.append({
+            "iB":iB,
+            "bootstrap_path":bootstrap_path,
+            "RegA_x":RegA_x, "RegA_y":RegA_y, "RegA_weights":RegA_weights,
+            "RegB_x":RegB_x, 
+            "RegC_x":RegC_x, "RegC_y":RegC_y, "RegC_weights":RegC_weights,
+            "RegD_x":RegD_x
+        })
 
     # launch jobs
     if ops.ncpu == 1:
@@ -140,12 +154,24 @@ def train(conf):
     # make log file
     logfile = open(os.path.join(checkpoint_dir,"log.txt"),"w")
 
+    # concatenate
+    X = np.concatenate([conf["RegA_x"],conf["RegC_x"]])
+    Y = np.concatenate([conf["RegA_y"],conf["RegC_y"]])
+    W = np.concatenate([conf["RegA_weights"],conf["RegC_weights"]])
+    Y = np.stack([Y,W],axis=-1)
+
+    # standardize
+    X = (X - np.mean(X,0))/np.std(X,0)
+    logfile.write(f"X mean, std: {np.mean(X)}, {np.std(X)}")
+
     # split data
-    X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(conf["X"], conf["Y"], np.arange(conf["X"].shape[0]), test_size=0.75, shuffle=True)
+    X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(X, Y, np.arange(X.shape[0]), test_size=0.75, shuffle=True)
+    del X, Y, W
+    gc.collect()
+    
+    # write to log
     logfile.write(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})" +"\n" )
     logfile.write(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})" +"\n")
-    #del conf
-    #gc.collect()
 
     # make callbacks
     callbacks = []
@@ -173,11 +199,26 @@ def train(conf):
     # plot loss
     plot_loss(history, checkpoint_dir)
 
-    # predict
-    p = model.predict(conf["X"]).flatten()
-    np.savez(os.path.join(checkpoint_dir,"predictions.npz"),**{"prediction": p, "idx_train": idx_train, "idx_test": idx_test,"RegA_nevents":conf["RegA_nevents"], "RegC_nevents":conf["RegC_nevents"]})
+    # predict in each region
+    logfile.write(f"Prediction Region A with {conf['RegA_x'].shape[0]} events" + "\n")
+    RegA_p = model.predict(conf["RegA_x"]).flatten()
+    logfile.write(f"Prediction Region B with {conf['RegB_x'].shape[0]} events" + "\n")
+    RegB_p = model.predict(conf["RegB_x"]).flatten()
+    logfile.write(f"Prediction Region C with {conf['RegC_x'].shape[0]} events" + "\n")
+    RegC_p = model.predict(conf["RegC_x"]).flatten()
+    logfile.write(f"Prediction Region D with {conf['RegD_x'].shape[0]} events" + "\n")
+    RegD_p = model.predict(conf["RegD_x"]).flatten()
+    np.savez(
+        os.path.join(checkpoint_dir,"predictions.npz"),
+        **{
+        "idx_train": idx_train, "idx_test": idx_test,
+        "RegA_p": RegA_p,
+        "RegB_p": RegB_p,
+        "RegC_p": RegC_p,
+        "RegD_p": RegD_p})
 
     # close
+    logfile.write("Done closing log file")
     logfile.close()
 
 def options():
