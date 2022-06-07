@@ -137,7 +137,7 @@ def train(conf):
     logfile = open(os.path.join(checkpoint_dir,"log.txt"),"w")
 
     # split data
-    X_train, X_test, Y_train, Y_test = train_test_split(conf["X"], conf["Y"], test_size=0.75, shuffle=True)
+    X_train, X_test, Y_train, Y_test, Idx_train, Idx_test = train_test_split(conf["X"], conf["Y"], np.arange(conf["X"].shape[0]) test_size=0.75, shuffle=True)
     logfile.write(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})" +"\n" )
     logfile.write(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})" +"\n")
     del conf
@@ -168,6 +168,10 @@ def train(conf):
     
     # plot loss
     plot_loss(history, checkpoint_dir)
+
+    # predict
+    p = model.predict(conf["X"]).flatten()
+    np.savez("",**{"prediction": p, "Idx_train": Idx_train, "Idx_test": Idx_test})
 
     # close
     logfile.close()
