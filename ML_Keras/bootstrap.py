@@ -116,25 +116,30 @@ def train(conf):
     # user options
     ops = options()
 
+    # ModelCheckpoint
+    checkpoint_filepath = os.path.join(ops.bootstrap_path, f'training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}', "cp-{epoch:04d}.ckpt")
+    checkpoint_dir = os.path.dirname(checkpoint_filepath)
+    if not os.path.isdir(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+
+    # make log file
+    logfile = open(os.path.join(checkpoint_dir,"log.txt"),"w")
+
     # split data
     X_train, X_test, Y_train, Y_test = train_test_split(conf["X"], conf["Y"], test_size=0.75, shuffle=True)
-    print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
-    print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
+    logfile.write(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})" +"\n" )
+    logfile.write(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})" +"\n")
     del conf
     gc.collect()
 
     # make callbacks
     callbacks = []
     callbacks.append(tf.keras.callbacks.EarlyStopping(patience=30, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
-    # ModelCheckpoint
-    checkpoint_filepath = os.path.join(ops.bootstrap_path, f'training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}', "cp-{epoch:04d}.ckpt")
-    checkpoint_dir = os.path.dirname(checkpoint_filepath)
-    if not os.path.isdir(checkpoint_dir):
-        os.makedirs(checkpoint_dir)
     callbacks.append(tf.keras.callbacks.ModelCheckpoint(checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,))
     # Terminate on NaN such that it is easier to debug
     callbacks.append(tf.keras.callbacks.TerminateOnNaN())
     callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
+    callbacks.append(tf.keras.callbacks.CSVLogger(os.path.join(checkpoint_dir,"fit.txt"), separator=",", append=False))
 
     # compile
     model = simple_model(input_dim=X_train.shape[1])
@@ -150,6 +155,8 @@ def train(conf):
         validation_data=(X_test,Y_test)
     )
 
+    # close
+    logfile.close()
 
 def options():
     parser = argparse.ArgumentParser()
