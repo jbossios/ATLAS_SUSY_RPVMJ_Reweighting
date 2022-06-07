@@ -64,12 +64,6 @@ def simple_model(**kargs):
     hidden_layer_3 = Dense(50, activation='relu')(hidden_layer_2)
     outputs = Dense(1, activation='linear')(hidden_layer_3) # sigmoid
     model = Model(inputs=inputs, outputs=outputs)
-    # Compile model
-    model.compile(
-        optimizer=tf.optimizers.Adam(learning_rate=kargs["learning_rate"]),
-        loss=sqrtR_loss,
-        metrics=[mean_pred],
-    )
     return model
 
 if __name__ == "__main__":

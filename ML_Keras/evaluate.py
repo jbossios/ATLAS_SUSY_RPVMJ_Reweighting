@@ -125,8 +125,10 @@ def main(config = None):
     RegD_x = (RegD_x-np.mean(RegD_x,0))/np.std(RegD_x,0)
 
     # load model
-    model = simple_model(input_dim=RegA_x.shape[1], learning_rate=1e-3)
+    model = simple_model(input_dim=RegA_x.shape[1])
+    model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate),loss=sqrtR_loss,metrics=[mean_pred])
     model.summary()
+    
     # if checkpoint directory provided use the latest
     if os.path.isdir(ops.model_weights):
         latest = tf.train.latest_checkpoint(ops.model_weights)

@@ -21,11 +21,9 @@ import gc
 
 # custom imports
 try:
-    from make_model import simple_model
-    from get_sample import get_sample
+    from make_model import simple_model, sqrtR_loss, mean_pred
 except:
-    from ML_Keras.make_model import simple_model
-    from ML_Keras.get_sample import get_sample
+    from ML_Keras.make_model import simple_model, sqrtR_loss, mean_pred
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -164,7 +162,8 @@ def main(config = None):
             tf.keras.utils.set_random_seed(seed)
 
     # make model
-    model = simple_model(input_dim=X.shape[1], learning_rate=conf["learning_rate"])
+    model = simple_model(input_dim=X.shape[1])
+    model.compile(optimizer=tf.optimizers.Adam(learning_rate=conf["learning_rate"]),loss=sqrtR_loss,metrics=[mean_pred])
     model.summary()
 
     # make callbacks
