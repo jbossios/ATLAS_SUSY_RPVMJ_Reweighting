@@ -18,6 +18,7 @@ import os
 import sys
 import logging
 import glob
+import gc
 
 # custom code
 try:
@@ -126,7 +127,7 @@ def main(config = None):
     # RegD_x = (RegD_x-np.mean(RegD_x,0))/np.std(RegD_x,0)
 
     # load model
-    model = simple_model(input_dim=x.shape[1], learning_rate=conf["learning_rate"])
+    model = simple_model(input_dim=RegA_x.shape[1], learning_rate=1e-3)
     model.summary()
     # if checkpoint directory provided use the latest
     if os.path.isdir(ops.model_weights):
@@ -164,11 +165,11 @@ def main(config = None):
     # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,'reweightAtoC.pdf'), bbox_inches="tight")
 
-    # Reweight B -> D
-    RegB_p = model.predict(RegB_x).flatten()
-    print(f"RegB_p: {np.mean(RegB_p)},{np.std(RegB_p)}")
-    RegB_reweighted = RegB_weights * RegB_p # #np.nan_to_num(RegB_p/(1-RegB_p),posinf=1)
-    RegD_p = -999 #model.predict(RegD_x).flatten()
+    # # Reweight B -> D
+    # RegB_p = model.predict(RegB_x).flatten()
+    # print(f"RegB_p: {np.mean(RegB_p)},{np.std(RegB_p)}")
+    # RegB_reweighted = RegB_weights * RegB_p # #np.nan_to_num(RegB_p/(1-RegB_p),posinf=1)
+    # RegD_p = -999 #model.predict(RegD_x).flatten()
 
     # # plot
     # fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
