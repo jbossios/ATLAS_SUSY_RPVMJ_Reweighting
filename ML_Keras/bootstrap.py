@@ -24,7 +24,7 @@ if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 # multiprocessing settings
-multiprocessing.set_start_method('spawn', force=True)
+mp.set_start_method('spawn', force=True)
 
 # This function keeps the initial learning rate for the first N epochs and decreases it exponentially after that.
 def scheduler(epoch, lr):
@@ -100,7 +100,7 @@ def main(config = None):
     print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
 
     # define model
-    model = simple_model(input_dim=X.shape[1])
+    # model = simple_model(input_dim=X.shape[1])
 
     # define bootstrap path
     # bootstrap_path = os.path.join('./checkpoints', f'bootstrap_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}')
@@ -164,6 +164,7 @@ def train(X, Y):
     callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
 
     # compile
+    model = simple_model(input_dim=X.shape[1])
     model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate), loss=sqrtR_loss, metrics=[mean_pred])
 
     # fit
