@@ -4,8 +4,9 @@ Date: April 27, 2022
 '''
 
 import matplotlib.pyplot as plt
+import os
 
-def plot_loss(history):
+def plot_loss(history, outDir):
   """
   Plot loss vs epochs
   """
@@ -17,4 +18,4 @@ def plot_loss(history):
   plt.ylabel('Loss')
   plt.legend()
   plt.grid(True)
-  plt.savefig('loss_vs_epochs.pdf')
+  plt.savefig(os.path.join(outDir,'loss_vs_epochs.pdf'))

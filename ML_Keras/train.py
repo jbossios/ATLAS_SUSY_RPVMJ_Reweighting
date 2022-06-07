@@ -69,10 +69,10 @@ def main(config = None):
     log = logging.getLogger()
 
     # user options
+    ops = options()
     if config is not None:
         conf = config
     else:
-        ops = options()
         if ops.conf:
             with open(ops.conf) as f:
                 log.info(f"opening {ops.conf}")
@@ -223,7 +223,7 @@ def main(config = None):
         except:
             from ML_Keras.plotting_functions import plot_loss
         data['epoch'] = history.epoch
-        plot_loss(history)
+        plot_loss(history, ops.outDir)
 
     return data  # will be used in CI tests
 
