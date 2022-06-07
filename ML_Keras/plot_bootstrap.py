@@ -151,7 +151,7 @@ def main():
         median = np.median(x,0)
         bootstrap_weights[key] = {
             'w_nom' : median,
-            'w_up' : median + 0.5 * iqr
+            'w_up' : median + 0.5 * iqr,
             'w_down' : median - 0.5 * iqr   
         }
 
