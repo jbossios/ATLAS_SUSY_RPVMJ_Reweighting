@@ -1,3 +1,8 @@
+'''
+Authors: Anthony Badea
+Date: Tuesday June 7, 2022
+Purpose: Combine bootstrap weights
+'''
 
 import numpy as np
 import scipy.stats
@@ -13,7 +18,7 @@ def main():
 	ops = options()
 
 	# get list of checkpoint directories
-	dir_list = ['./bootstrap_2022.06.07.18.13.47/training_0/'] #handleInput()
+	dir_list = [f'./checkpoints/bootstrap_2022.06.07.18.13.47/training_{i}' for i in range(10)] #handleInput()
 	if not dir_list:
 		print("No entries in the dir_list")
 		exit()

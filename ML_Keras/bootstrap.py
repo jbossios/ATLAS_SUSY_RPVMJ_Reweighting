@@ -5,6 +5,7 @@ Purpose: Bootstrap uncertainties
 '''
 
 # python
+import json
 import h5py
 import argparse
 import numpy as np
@@ -17,6 +18,7 @@ import multiprocessing as mp
 
 # custom
 from make_model import simple_model, sqrtR_loss, mean_pred
+from plotting_functions import plot_loss
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -37,6 +39,15 @@ def main(config = None):
 
     # user options
     ops = options()
+    
+    # initialize bootstrap path
+    bootstrap_path = ops.bootstrap_path
+    if not os.path.isdir(bootstrap_path):
+        os.makedirs(bootstrap_path)
+    
+    # write options to file to save
+    with open(os.path.join(bootstrap_path,"options.json"),"w") as f:
+        json.dump(vars(ops), f)
 
     # set seeds to get reproducible results (only if requested)
     if ops.seed is not None:
@@ -102,7 +113,7 @@ def main(config = None):
     # prepare confs
     confs = []
     for iB in range(ops.num_bootstraps):
-        confs.append({"iB":iB,"X":X,"Y":Y,"bootstrap_path":ops.bootstrap_path})
+        confs.append({"iB":iB,"X":X,"Y":Y,"bootstrap_path":bootstrap_path})
 
     # launch jobs
     if ops.ncpu == 1:
@@ -154,6 +165,9 @@ def train(conf):
         verbose=1,
         validation_data=(X_test,Y_test)
     )
+    
+    # plot loss
+    plot_loss(history, checkpoint_dir)
 
     # close
     logfile.close()
