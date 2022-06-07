@@ -98,6 +98,10 @@ def main(config = None):
     del x, normweight
     gc.collect()
 
+    # save number of events
+    RegA_nevents = RegA_x.shape[0]
+    RegC_nevents = RegC_x.shape[0]
+
     # concatenate
     X = np.concatenate([RegA_x,RegC_x])
     Y = np.concatenate([RegA_y,RegC_y])
@@ -113,7 +117,7 @@ def main(config = None):
     # prepare confs
     confs = []
     for iB in range(ops.num_bootstraps):
-        confs.append({"iB":iB,"X":X,"Y":Y,"bootstrap_path":bootstrap_path})
+        confs.append({"iB":iB,"X":X,"Y":Y,"bootstrap_path":bootstrap_path,"RegA_nevents":RegA_nevents, "RegC_nevents":RegC_nevents})
 
     # launch jobs
     if ops.ncpu == 1:
@@ -137,11 +141,11 @@ def train(conf):
     logfile = open(os.path.join(checkpoint_dir,"log.txt"),"w")
 
     # split data
-    X_train, X_test, Y_train, Y_test, Idx_train, Idx_test = train_test_split(conf["X"], conf["Y"], np.arange(conf["X"].shape[0]) test_size=0.75, shuffle=True)
+    X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(conf["X"], conf["Y"], np.arange(conf["X"].shape[0]), test_size=0.75, shuffle=True)
     logfile.write(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})" +"\n" )
     logfile.write(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})" +"\n")
-    del conf
-    gc.collect()
+    #del conf
+    #gc.collect()
 
     # make callbacks
     callbacks = []
@@ -171,7 +175,7 @@ def train(conf):
 
     # predict
     p = model.predict(conf["X"]).flatten()
-    np.savez("",**{"prediction": p, "Idx_train": Idx_train, "Idx_test": Idx_test})
+    np.savez(os.path.join(checkpoint_dir,"predictions.npz"),**{"prediction": p, "idx_train": idx_train, "idx_test": idx_test,"RegA_nevents":conf["RegA_nevents"], "RegC_nevents":conf["RegC_nevents"]})
 
     # close
     logfile.close()
