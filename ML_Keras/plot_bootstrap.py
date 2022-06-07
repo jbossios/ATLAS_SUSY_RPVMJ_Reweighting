@@ -142,6 +142,7 @@ def main():
         # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
         plt.savefig(os.path.join(ops.outDir,f'reweightBtoD_bootstrap{iP}.pdf'), bbox_inches="tight")
         plt.close(fig)
+        hists["RegB"].append(c2)
 
     # concatenate and take median +- 1/2 * IQR
     bootstrap_weights = {}
@@ -169,7 +170,9 @@ def main():
     c3, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = bootstrap_weights["RegA"]["w_up"], label = rf'Up Reweight RegA $\rightarrow$ RegC', color = colors[3], density=ops.density, histtype="step", lw=2) 
     c4, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = bootstrap_weights["RegA"]["w_down"], label = rf'Down Reweight RegA $\rightarrow$ RegC', color = colors[4], density=ops.density, histtype="step", lw=2) 
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegA $/$ RegC', color = colors[0], lw=1)
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegA $/$ RegC', color = colors[2], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Median Reweighted RegA $/$ RegC', color = colors[2], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c3/(c1 + 10**-50), 'o-', label = rf'Up Reweighted RegA $/$ RegC', color = colors[3], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c4/(c1 + 10**-50), 'o-', label = rf'Down Reweighted RegA $/$ RegC', color = colors[4], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
     ax.legend(title=rf"minAvgMass $<$ {cut_minAvgMass} GeV", loc="best", prop={'size': 8}, framealpha=0.0)
     # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
@@ -204,12 +207,33 @@ def main():
     c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=ops.density, histtype="step", lw=2)
     c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=ops.density, histtype="step", lw=2)
     c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = bootstrap_weights["RegB"]["w_nom"], label = rf'Median Reweight RegB $\rightarrow$ RegD', color = colors[2], density=ops.density, histtype="step", lw=2) 
+    c3, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = bootstrap_weights["RegB"]["w_up"], label = rf'Up Reweight RegB $\rightarrow$ RegD', color = colors[3], density=ops.density, histtype="step", lw=2) 
+    c4, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = bootstrap_weights["RegB"]["w_down"], label = rf'Down Reweight RegB $\rightarrow$ RegD', color = colors[4], density=ops.density, histtype="step", lw=2) 
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegB $/$ RegD', color = colors[0], lw=1)
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegB $/$ RegD', color = colors[2], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Median Reweighted RegB $/$ RegD', color = colors[2], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c3/(c1 + 10**-50), 'o-', label = rf'Up Reweighted RegB $/$ RegD', color = colors[3], lw=1)
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c4/(c1 + 10**-50), 'o-', label = rf'Down Reweighted RegB $/$ RegD', color = colors[4], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
     ax.legend(title=rf"minAvgMass $\geq$ {cut_minAvgMass} GeV", loc="best", prop={'size': 8}, framealpha=0.0)
     # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,f'reweightBtoD_bootstrap_w_nom.pdf'), bbox_inches="tight")
+    plt.close(fig)
+
+    # compare bootstraps
+    fig, ax = plt.subplots(1,  gridspec_kw={'height_ratios': (1,), 'hspace': 0.0})
+    ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, [1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls='--', color = 'black', lw=1)
+    for iH, hist in enumerate(hists["RegB"]):
+        if iH == 0:
+            ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, hist/(c2 + 10**-50), '-', color = 'grey', lw=1, label="Single Bootstraped Estimate")
+        else:
+            ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, hist/(c2 + 10**-50), '-', color = 'grey', lw=1)
+    ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c3/(c2 + 10**-50), '-', color = 'blue', lw=1, label=r"Vary All Event Weights Up/Down ($\pm$ IQR/2)")
+    ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c4/(c2 + 10**-50), '-', color = 'blue', lw=1)
+    ax.set_ylim(0,2)
+    ax.set_ylabel("Bootstrap/Nominal Est.")
+    ax.set_xlabel(r"H$_{\mathrm{T}}$ [GeV]")
+    ax.legend(title=rf"Reweight RegB $\rightarrow$ RegD", loc="best", prop={'size': 8}, framealpha=0.0)
+    plt.savefig(os.path.join(ops.outDir,f'reweightBtoD_bootstrap_div_nominal.pdf'), bbox_inches="tight")
     plt.close(fig)
 
 
