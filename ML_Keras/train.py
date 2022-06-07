@@ -178,7 +178,7 @@ def main(config = None):
 
     # standardize
     X = (X - np.mean(X,0))/np.std(X,0)
-    print(np.mean(X), np.std(X), X.shape, Y.shape)
+    print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
     
     # split
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.75, shuffle=True)
@@ -195,7 +195,7 @@ def main(config = None):
             tf.keras.utils.set_random_seed(seed)
 
     # make model
-    model = simple_model(input_dim=x.shape[1], learning_rate=conf["learning_rate"], loss=sqrtR_loss)
+    model = simple_model(input_dim=X.shape[1], learning_rate=conf["learning_rate"], loss=sqrtR_loss)
     model.summary()
 
     # make callbacks
