@@ -81,15 +81,9 @@ def main(config = None):
             conf = {
                 "file": ops.inFile,
                 "nepochs": ops.nepochs,
-                "train_batch_size": ops.train_batch_size,
-                "val_batch_size": ops.val_batch_size,
-                "validation_steps" : ops.validation_steps,
+                "batch_size": ops.batch_size,
                 "learning_rate" : ops.learning_rate,
-                "input_dim" : ops.input_dim,
-                "ndense" : ops.ndense,
-                "nnode_per_dense" : ops.nnode_per_dense,
-                "seed" : ops.seed,
-                "num_samples" : ops.num_samples
+                "seed" : ops.seed
             }
             with open('conf.json', 'w') as fp:
                 json.dump(conf, fp)
@@ -100,9 +94,6 @@ def main(config = None):
         sys.exit(1)
 
     # training configuration
-    if "num_samples" not in conf or conf["num_samples"] is None:
-        with h5py.File(conf["file"],"r") as hf:
-            conf["num_samples"] = hf['EventVars']['HT'].shape[0]
     log.info("Training configuration: \n" + json.dumps(conf, indent=4, sort_keys=True))
 
     # data set generators
@@ -214,7 +205,7 @@ def main(config = None):
     # train
     history = model.fit(
         X_train, Y_train,
-        batch_size=ops.train_batch_size,
+        batch_size=ops.batch_size,
         epochs=conf["nepochs"],
         callbacks=callbacks,
         verbose=1,
@@ -244,15 +235,10 @@ def options():
     parser.add_argument("-i", "--inFile", help="Input file.", default=None)
     parser.add_argument("-o", "--outDir", help="Output directory for plots", default="./")
     # train settings
-    parser.add_argument("-ne", "--nepochs", help="Number of epochs.", default=1, type=int)
-    parser.add_argument("-tb", "--train_batch_size", help="Training batch size.", default=2048, type=int)
-    parser.add_argument("-vb", "--val_batch_size", help="Validation batch size.", default=256, type=int)
-    parser.add_argument("-vs", "--validation_steps", help="Number of validation steps.", default=1, type=int)
+    parser.add_argument("-e", "--nepochs", help="Number of epochs.", default=1, type=int)
+    parser.add_argument("-b", "--batch_size", help="Training batch size.", default=2048, type=int)
     parser.add_argument("-lr", "--learning_rate", help="Learning rate", default=1e-3, type=float)
     # model settings
-    parser.add_argument("-ni", "--input_dim", help="Dimension of inputs per event for the first layer.", default=1, type=int)
-    parser.add_argument("-nl", "--ndense", help="Number of dense layers.", default=1, type=int)
-    parser.add_argument("-nd", "--nnode_per_dense", help="Number of nodes per dense layer.", default=30, type=int)
     parser.add_argument("-s", "--seed", help="Seed for TensorFlow and NumPy", default=None, type=int)
     parser.add_argument("-ns", "--num_samples", help="Number of events", default=None, type=int)
     return parser.parse_args()
