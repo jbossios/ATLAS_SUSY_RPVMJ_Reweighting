@@ -25,7 +25,7 @@ if physical_devices:
 
 def main(config = None):
 
-	# user options
+    # user options
     ops = options()
 
     # set seeds to get reproducible results (only if requested)
@@ -97,36 +97,36 @@ def main(config = None):
 
     for iB in range(ops.num_bootstraps):
 
-    	# split data
-    	X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.75, shuffle=True)
-	    print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
-	    print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
+        # split data
+        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.75, shuffle=True)
+        print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
+        print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
 
-    	# make callbacks
-	    callbacks = []
-	    callbacks.append(tf.keras.callbacks.EarlyStopping(patience=30, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
-	    # ModelCheckpoint
-	    checkpoint_filepath = os.path.join(bootstrap_path, f'training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}', "cp-{epoch:04d}.ckpt")
-	    checkpoint_dir = os.path.dirname(checkpoint_filepath)
-	    if not os.path.isdir(checkpoint_dir):
-	        os.makedirs(checkpoint_dir)
-	    callbacks.append(tf.keras.callbacks.ModelCheckpoint(checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,))
-	    # Terminate on NaN such that it is easier to debug
-	    callbacks.append(tf.keras.callbacks.TerminateOnNaN())
-	    callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
+        # make callbacks
+        callbacks = []
+        callbacks.append(tf.keras.callbacks.EarlyStopping(patience=30, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
+        # ModelCheckpoint
+        checkpoint_filepath = os.path.join(bootstrap_path, f'training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}', "cp-{epoch:04d}.ckpt")
+        checkpoint_dir = os.path.dirname(checkpoint_filepath)
+        if not os.path.isdir(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
+        callbacks.append(tf.keras.callbacks.ModelCheckpoint(checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,))
+        # Terminate on NaN such that it is easier to debug
+        callbacks.append(tf.keras.callbacks.TerminateOnNaN())
+        callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
 
-    	# compile
-	    model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate), loss=sqrtR_loss, metrics=[mean_pred])
+        # compile
+        model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate), loss=sqrtR_loss, metrics=[mean_pred])
 
-	    # fit
-	    history = model.fit(
-	        X_train, Y_train,
-	        batch_size=ops.batch_size,
-	        epochs=ops.nepochs,
-	        callbacks=callbacks,
-	        verbose=1,
-	        validation_data=(X_test,Y_test)
-	    )
+        # fit
+        history = model.fit(
+            X_train, Y_train,
+            batch_size=ops.batch_size,
+            epochs=ops.nepochs,
+            callbacks=callbacks,
+            verbose=1,
+            validation_data=(X_test,Y_test)
+        )
 
 def options():
     parser = argparse.ArgumentParser()
@@ -140,4 +140,4 @@ def options():
     return parser.parse_args()
 
 if __name__ == "__main__":
-	main()
+    main()
