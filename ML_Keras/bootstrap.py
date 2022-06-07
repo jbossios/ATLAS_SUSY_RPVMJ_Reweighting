@@ -201,13 +201,13 @@ def train(conf):
 
     # predict in each region
     logfile.write(f"Prediction Region A with {conf['RegA_x'].shape[0]} events" + "\n")
-    RegA_p = model.predict(conf["RegA_x"]).flatten()
+    RegA_p = model.predict(conf["RegA_x"],batch_size=10000).flatten()
     logfile.write(f"Prediction Region B with {conf['RegB_x'].shape[0]} events" + "\n")
-    RegB_p = model.predict(conf["RegB_x"]).flatten()
+    RegB_p = model.predict(conf["RegB_x"],batch_size=10000).flatten()
     logfile.write(f"Prediction Region C with {conf['RegC_x'].shape[0]} events" + "\n")
-    RegC_p = model.predict(conf["RegC_x"]).flatten()
+    RegC_p = model.predict(conf["RegC_x"],batch_size=10000).flatten()
     logfile.write(f"Prediction Region D with {conf['RegD_x'].shape[0]} events" + "\n")
-    RegD_p = model.predict(conf["RegD_x"]).flatten()
+    RegD_p = model.predict(conf["RegD_x"],batch_size=10000).flatten()
     np.savez(
         os.path.join(checkpoint_dir,"predictions.npz"),
         **{
