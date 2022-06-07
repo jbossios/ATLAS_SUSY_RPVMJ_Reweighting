@@ -66,9 +66,6 @@ def main(config = None):
         else:
             conf = {
                 "file": ops.inFile,
-                "input_dim" : ops.input_dim,
-                "ndense" : ops.ndense,
-                "nnode_per_dense" : ops.nnode_per_dense
             }
 
     # protection
@@ -202,10 +199,6 @@ def options():
     parser.add_argument("-i",  "--inFile", help="Input file.", default=None)
     parser.add_argument("-o",  "--outDir", help="Output directory", default="./")
     parser.add_argument("-m",  "--model_weights", help="Model weights.", default=None)
-    # model settings
-    parser.add_argument("-ni", "--input_dim", help="Dimension of inputs per event for the first layer.", default=1, type=int)
-    parser.add_argument("-nl", "--ndense", help="Number of dense layers.", default=1, type=int)
-    parser.add_argument("-nd", "--nnode_per_dense", help="Number of nodes per dense layer.", default=30, type=int)
     return parser.parse_args()
 
 if __name__ == "__main__":
