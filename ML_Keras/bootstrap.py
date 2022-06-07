@@ -105,7 +105,7 @@ def main(config = None):
         confs.append({"X":X,"Y":Y})
 
     # launch jobs
-    if len(ops.ncpu) == 1:
+    if ops.ncpu == 1:
         for conf in confs:
             train(conf)
     else:
@@ -120,6 +120,8 @@ def train(conf):
     X_train, X_test, Y_train, Y_test = train_test_split(conf["X"], conf["Y"], test_size=0.75, shuffle=True)
     print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
     print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
+    del conf
+    gc.collect()
 
     # make callbacks
     callbacks = []
@@ -135,7 +137,7 @@ def train(conf):
     callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
 
     # compile
-    model = simple_model(input_dim=X.shape[1])
+    model = simple_model(input_dim=X_train.shape[1])
     model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate), loss=sqrtR_loss, metrics=[mean_pred])
 
     # fit
