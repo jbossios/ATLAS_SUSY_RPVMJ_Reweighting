@@ -22,6 +22,12 @@ physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
+# This function keeps the initial learning rate for the first N epochs and decreases it exponentially after that.
+def scheduler(epoch, lr):
+  if epoch < 5:
+    return lr
+  else:
+    return lr * tf.math.exp(-0.1)
 
 def main(config = None):
 
@@ -133,6 +139,7 @@ def options():
     # input files
     parser.add_argument("-i", "--inFile", help="Input file.", default=None)
     parser.add_argument("-o", "--outDir", help="Output directory for plots", default="./")
+    parser.add_argument("-nb", "--num_bootstraps", help="Number of trainings to perform for bootstrap.", default=2, type=int)
     parser.add_argument("-e", "--nepochs", help="Number of epochs.", default=1, type=int)
     parser.add_argument("-b", "--batch_size", help="Training batch size.", default=2048, type=int)
     parser.add_argument("-lr", "--learning_rate", help="Learning rate", default=1e-3, type=float)
