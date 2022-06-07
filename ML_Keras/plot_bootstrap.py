@@ -177,14 +177,16 @@ def main():
     plt.close(fig)
 
     # compare bootstraps
-    fig, ax = plt.subplots(1,  gridspec_kw={{'height_ratios': (1,), 'hspace': 0.0}})
-    for iH, hist in enumerate(hists):
+    fig, ax = plt.subplots(1,  gridspec_kw={'height_ratios': (1,), 'hspace': 0.0})
+    ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, [1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls='--', color = 'black', lw=1)
+    for iH, hist in enumerate(hists["RegA"]):
         if iH == 0:
             ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, hist/(c2 + 10**-50), '-', color = 'grey', lw=1, label="Single Bootstraped Estimate")
         else:
             ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, hist/(c2 + 10**-50), '-', color = 'grey', lw=1)
     ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c3/(c2 + 10**-50), '-', color = 'blue', lw=1, label=r"Vary All Event Weights Up/Down ($\pm$ IQR/2)")
     ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c4/(c2 + 10**-50), '-', color = 'blue', lw=1)
+    ax.set_ylim(0,2)
     ax.set_ylabel("Bootstrap/Nominal Est.")
     ax.set_xlabel(r"H$_{\mathrm{T}}$ [GeV]")
     ax.legend(title=rf"Reweight RegA $\rightarrow$ RegC", loc="best", prop={'size': 8}, framealpha=0.0)
