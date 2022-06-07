@@ -33,9 +33,6 @@ def sqrtR_loss(y_true, y_pred):
     # exponentiate prediction to avoid requiring y_pred to be positive for sqrt (numerical trick)
     y_pred = K.exp(y_pred)
 
-    # sqrt weights to reduce the very small exponenents (numerical trick)
-    weights = K.sqrt(weights)
-
     # loss
     loss = K.sum(K.sqrt(tf.boolean_mask(y_pred,y_true==0)) * tf.boolean_mask(weights,y_true==0))
     loss += K.sum(1/K.sqrt(tf.boolean_mask(y_pred,y_true==1)) * tf.boolean_mask(weights,y_true==1))

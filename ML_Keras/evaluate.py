@@ -92,7 +92,8 @@ def main(config = None):
            ],-1)
         minAvgMass = np.array(f['EventVars']['minAvgMass'])
         nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
-        normweight = np.sqrt(np.array(f['normweight']['normweight']))
+        normweight = np.array(f['normweight']['normweight'])
+        # normweight = np.sqrt(normweight)
         print(f"Number of events: {minAvgMass.shape[0]}")
 
     # Create cuts to Reweight A -> C
