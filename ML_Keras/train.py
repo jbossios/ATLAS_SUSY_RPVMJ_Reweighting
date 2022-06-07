@@ -32,29 +32,6 @@ physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-def weighted_binary_crossentropy(y_true, y_pred):
-    weights = tf.gather(y_true, [1], axis=1) # event weights
-    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
-
-    # Clip the prediction value to prevent NaN's and Inf's
-    epsilon = K.epsilon()
-    y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
-    t_loss = -1 * ((y_true) * K.log(y_pred + epsilon) + (1 - y_true) * K.log(1 - y_pred + epsilon)) * weights 
-    return K.mean(t_loss)
-
-def sqrtR_loss(y_true, y_pred):
-    weights = tf.gather(y_true, [1], axis=1) # event weights
-    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
-    
-    # Clip the prediction value to prevent NaN's and Inf's
-    epsilon = K.epsilon()
-    y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
-    
-    # loss
-    loss = K.sum(K.sqrt(tf.boolean_mask(y_pred,y_true==0)) * tf.boolean_mask(weights,y_true==0))
-    loss += K.sum(1/K.sqrt(tf.boolean_mask(y_pred,y_true==1)) * tf.boolean_mask(weights,y_true==1))
-    return loss
-
 # This function keeps the initial learning rate for the first N epochs and decreases it exponentially after that.
 def scheduler(epoch, lr):
   if epoch < 5:
@@ -186,7 +163,7 @@ def main(config = None):
             tf.keras.utils.set_random_seed(seed)
 
     # make model
-    model = simple_model(input_dim=X.shape[1], learning_rate=conf["learning_rate"], loss=sqrtR_loss)
+    model = simple_model(input_dim=X.shape[1], learning_rate=conf["learning_rate"])
     model.summary()
 
     # make callbacks

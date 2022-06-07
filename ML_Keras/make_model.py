@@ -16,6 +16,29 @@ def myacc(y_true,y_pred):
 def mean_pred(y_true,y_pred):
     return K.mean(y_pred)
 
+def weighted_binary_crossentropy(y_true, y_pred):
+    weights = tf.gather(y_true, [1], axis=1) # event weights
+    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
+
+    # Clip the prediction value to prevent NaN's and Inf's
+    epsilon = K.epsilon()
+    y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
+    t_loss = -1 * ((y_true) * K.log(y_pred + epsilon) + (1 - y_true) * K.log(1 - y_pred + epsilon)) * weights 
+    return K.mean(t_loss)
+
+def sqrtR_loss(y_true, y_pred):
+    weights = tf.gather(y_true, [1], axis=1) # event weights
+    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
+    
+    # Clip the prediction value to prevent NaN's and Inf's
+    epsilon = K.epsilon()
+    y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
+    
+    # loss
+    loss = K.sum(K.sqrt(tf.boolean_mask(y_pred,y_true==0)) * tf.boolean_mask(weights,y_true==0))
+    loss += K.sum(1/K.sqrt(tf.boolean_mask(y_pred,y_true==1)) * tf.boolean_mask(weights,y_true==1))
+    return loss
+    
 def make_model(**kargs):
     
     # Create model
@@ -45,7 +68,7 @@ def simple_model(**kargs):
     # Compile model
     model.compile(
         optimizer=tf.optimizers.Adam(learning_rate=kargs["learning_rate"]),
-        loss=kargs["loss"],
+        loss=sqrtR_loss,
         metrics=[mean_pred],
     )
     return model
