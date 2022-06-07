@@ -33,23 +33,41 @@ physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
+# def weighted_binary_crossentropy(y_true, y_pred):
+#     weights = tf.gather(y_true, [1], axis=1) # event weights
+#     y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
+
+#     # Clip the prediction value to prevent NaN's and Inf's
+#     epsilon = K.epsilon()
+#     y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
+#     t_loss = -1 * ((y_true) * K.log(y_pred + epsilon) + (1 - y_true) * K.log(1 - y_pred + epsilon)) * weights 
+#     t_loss = K.mean(t_loss)
+#     # tf.print(y_true)
+#     # tf.print(t_loss)
+#     #tf.print(tf.reduce_sum(tf.cast((y_true - y_pred)<=0.1, tf.float32)))
+#     return t_loss
+
 def weighted_binary_crossentropy(y_true, y_pred):
     weights = tf.gather(y_true, [1], axis=1) # event weights
     y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
-
+    
     # Clip the prediction value to prevent NaN's and Inf's
     epsilon = K.epsilon()
     y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
-    t_loss = -1 * ((y_true) * K.log(y_pred + epsilon) + (1 - y_true) * K.log(1 - y_pred + epsilon)) * weights 
-    t_loss = K.mean(t_loss)
-    # tf.print(y_true)
-    # tf.print(t_loss)
-    #tf.print(tf.reduce_sum(tf.cast((y_true - y_pred)<=0.1, tf.float32)))
-    return t_loss
+    
+    # might need to apply weights
+    loss = K.sum(K.sqrt(tf.boolean_mask(y_pred,y_true==0)) * tf.boolean_mask(weights,y_true==0))
+    loss += K.sum(1/K.sqrt(tf.boolean_mask(y_pred,y_true==1)) * tf.boolean_mask(weights,y_true==1))
+    #loss = K.mean(K.sqrt(tf.boolean_mask(y_pred,y_true==0))) + K.mean(1/K.sqrt(tf.boolean_mask(y_pred,y_true==1)))
+    return loss
 
-def my_accuracy(y_true, y_pred):
-    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
-    return tf.reduce_sum(tf.cast((y_true - y_pred)<=0.1, tf.float32))
+# This function keeps the initial learning rate for the first ten epochs
+# and decreases it exponentially after that.
+def scheduler(epoch, lr):
+  if epoch < 5:
+    return lr
+  else:
+    return lr * tf.math.exp(-0.1)
 
 def main(config = None):
 
@@ -143,7 +161,7 @@ def main(config = None):
                    np.array(f['EventVars']['deta']),
                    np.array(f['EventVars']['djmass']),
                    np.array(f['EventVars']['minAvgMass']),
-                   #np.array(f['source']['pt'][:,0])
+                   np.array(f['source']['pt'][:,0])
                ],-1)
     minAvgMass = np.array(f['EventVars']['minAvgMass'])
     nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
@@ -157,16 +175,22 @@ def main(config = None):
     # get events per region
     RegA_ht = HT[RegA]
     RegA_weights = normweight[RegA]
-    RegA_y = np.zeros(RegA_weights.shape) #np.zeros(RegA_weights.shape)
+    RegA_y = np.zeros(RegA_weights.shape)
     RegC_ht = HT[RegC]
     RegC_weights = normweight[RegC]
     RegC_y = np.ones(RegC_weights.shape)
-    # normalize reg A and reg C to have same total weight to begin with
-    if RegC_weights.sum() > RegA_weights.sum():
-        RegA_weights = RegC_weights.sum()/RegA_weights.sum() * RegA_weights
-    else:
-        RegC_weights = RegA_weights.sum()/RegC_weights.sum() * RegC_weights
-    print(f"RegA/C_weights sum: {RegA_weights.sum()}, {RegC_weights.sum()}")
+    
+    # convert weights to probabilities
+    #RegA_weights /= RegA_weights.sum()
+    #RegC_weights /= RegC_weights.sum()
+
+    # # normalize reg A and reg C to have same total weight to begin with
+    # if RegC_weights.sum() > RegA_weights.sum():
+    #     RegA_weights = RegC_weights.sum()/RegA_weights.sum() * RegA_weights
+    # else:
+    #     RegC_weights = RegA_weights.sum()/RegC_weights.sum() * RegC_weights
+    # print(f"RegA/C_weights sum: {RegA_weights.sum()}, {RegC_weights.sum()}")
+
     # # shuffle
     # RegA_idx = np.random.choice(RegA_y.shape[0],RegA_y.shape[0])
     # RegA_ht = RegA_ht[RegA_idx]
@@ -217,7 +241,7 @@ def main(config = None):
     callbacks = []
     # EarlyStopping
     early_stopping = tf.keras.callbacks.EarlyStopping(
-        patience=30, mode="min", restore_best_weights=True #, monitor="val_loss"
+        patience=10, mode="min", restore_best_weights=True #, monitor="val_loss"
     )
     callbacks.append(early_stopping)
     # ModelCheckpoint
@@ -226,12 +250,12 @@ def main(config = None):
     if not os.path.isdir(checkpoint_dir):
         os.makedirs(checkpoint_dir)
     model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        checkpoint_filepath, monitor="myacc", mode="min", save_best_only=True, save_weights_only=True,
+        checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,
     )
     callbacks.append(model_checkpoint)
     # Terminate on NaN such that it is easier to debug
     callbacks.append(tf.keras.callbacks.TerminateOnNaN())
-
+    callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
     # train
     # history = model.fit(
     #     train_data_gen,

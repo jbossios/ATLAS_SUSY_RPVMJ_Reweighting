@@ -78,7 +78,12 @@ def main(config = None):
     # make prediction
     f = h5py.File(conf["file"],"r")
     HT = np.array(f['EventVars']['HT'])
-    x = np.stack([np.array(f['EventVars']['HT']),np.array(f['EventVars']['deta']),np.array(f['EventVars']['djmass']),np.array(f['EventVars']['minAvgMass'])],-1)
+    x = np.stack([
+        np.array(f['EventVars']['HT']),
+        np.array(f['EventVars']['deta']),
+        np.array(f['EventVars']['djmass']),
+        np.array(f['EventVars']['minAvgMass']),
+    ],-1)
 
     # load model
     model = make_model(input_dim=x.shape[1], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=1e-3, loss=tf.keras.losses.BinaryCrossentropy())
@@ -170,7 +175,7 @@ def main(config = None):
     RegA_x = x[RegA]
     RegA_p = model.predict((RegA_x-np.mean(RegA_x,0))/np.std(RegA_x,0)).flatten() #p[RegA].flatten()
     #RegA_p = p[RegA].flatten()
-    RegA_rw = np.nan_to_num(RegA_p/(1-RegA_p),posinf=1)
+    RegA_rw = RegA_p #np.nan_to_num(RegA_p/(1-RegA_p),posinf=1)
     print(f"RegA_rw: {np.mean(RegA_rw)},{np.std(RegA_rw)}")
     RegA_reweighted = RegA_weights * RegA_rw
     print(max(RegA_ht))

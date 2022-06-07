@@ -7,10 +7,12 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.keras.layers import Dense, Input
 from tensorflow.keras.models import Model
+import tensorflow.keras.backend as K
 
 def myacc(y_true,y_pred):
-    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
-    return tf.reduce_sum(tf.cast((y_true - y_pred)<=0.1, tf.int32))/tf.size(y_true)
+    #y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
+    #return tf.reduce_sum(tf.cast((y_true - y_pred)<=0.1, tf.int32))/tf.size(y_true)
+    return K.mean(y_pred)
 
 def make_model(**kargs):
     
@@ -26,7 +28,7 @@ def make_model(**kargs):
     hidden_layer_1 = Dense(50, activation='relu')(inputs)
     hidden_layer_2 = Dense(100, activation='relu')(hidden_layer_1)
     hidden_layer_3 = Dense(50, activation='relu')(hidden_layer_2)
-    outputs = Dense(1, activation='sigmoid')(hidden_layer_3)
+    outputs = Dense(1, activation='linear')(hidden_layer_3) # sigmoid
     model = Model(inputs=inputs, outputs=outputs)
 
     # Compile model
