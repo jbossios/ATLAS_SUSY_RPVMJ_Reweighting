@@ -13,6 +13,7 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import datetime
 import os
+import multiprocessing as mp
 
 # custom
 from make_model import simple_model, sqrtR_loss, mean_pred
@@ -21,6 +22,9 @@ from make_model import simple_model, sqrtR_loss, mean_pred
 physical_devices = tf.config.list_physical_devices('GPU') 
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+# multiprocessing settings
+multiprocessing.set_start_method('spawn', force=True)
 
 # This function keeps the initial learning rate for the first N epochs and decreases it exponentially after that.
 def scheduler(epoch, lr):
@@ -99,47 +103,86 @@ def main(config = None):
     model = simple_model(input_dim=X.shape[1])
 
     # define bootstrap path
-    bootstrap_path = os.path.join('./checkpoints', f'bootstrap_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}')
+    # bootstrap_path = os.path.join('./checkpoints', f'bootstrap_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}')
 
     for iB in range(ops.num_bootstraps):
 
         # split data
-        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.75, shuffle=True)
-        print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
-        print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
+        # X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.75, shuffle=True)
+        # print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
+        # print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
 
-        # make callbacks
-        callbacks = []
-        callbacks.append(tf.keras.callbacks.EarlyStopping(patience=30, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
-        # ModelCheckpoint
-        checkpoint_filepath = os.path.join(bootstrap_path, f'training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}', "cp-{epoch:04d}.ckpt")
-        checkpoint_dir = os.path.dirname(checkpoint_filepath)
-        if not os.path.isdir(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
-        callbacks.append(tf.keras.callbacks.ModelCheckpoint(checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,))
-        # Terminate on NaN such that it is easier to debug
-        callbacks.append(tf.keras.callbacks.TerminateOnNaN())
-        callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
+        # # make callbacks
+        # callbacks = []
+        # callbacks.append(tf.keras.callbacks.EarlyStopping(patience=30, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
+        # # ModelCheckpoint
+        # checkpoint_filepath = os.path.join(bootstrap_path, f'training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}', "cp-{epoch:04d}.ckpt")
+        # checkpoint_dir = os.path.dirname(checkpoint_filepath)
+        # if not os.path.isdir(checkpoint_dir):
+        #     os.makedirs(checkpoint_dir)
+        # callbacks.append(tf.keras.callbacks.ModelCheckpoint(checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,))
+        # # Terminate on NaN such that it is easier to debug
+        # callbacks.append(tf.keras.callbacks.TerminateOnNaN())
+        # callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
 
-        # compile
-        model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate), loss=sqrtR_loss, metrics=[mean_pred])
+        # # compile
+        # model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate), loss=sqrtR_loss, metrics=[mean_pred])
 
-        # fit
-        history = model.fit(
-            X_train, Y_train,
-            batch_size=ops.batch_size,
-            epochs=ops.nepochs,
-            callbacks=callbacks,
-            verbose=1,
-            validation_data=(X_test,Y_test)
-        )
+        # # fit
+        # history = model.fit(
+        #     X_train, Y_train,
+        #     batch_size=ops.batch_size,
+        #     epochs=ops.nepochs,
+        #     callbacks=callbacks,
+        #     verbose=1,
+        #     validation_data=(X_test,Y_test)
+        # )
+
+        train(X,Y)
+
+def train(X, Y):
+
+    # user options
+    ops = options()
+
+    # split data
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.75, shuffle=True)
+    print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
+    print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
+
+    # make callbacks
+    callbacks = []
+    callbacks.append(tf.keras.callbacks.EarlyStopping(patience=30, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
+    # ModelCheckpoint
+    checkpoint_filepath = os.path.join(ops.bootstrap_path, f'training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}', "cp-{epoch:04d}.ckpt")
+    checkpoint_dir = os.path.dirname(checkpoint_filepath)
+    if not os.path.isdir(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+    callbacks.append(tf.keras.callbacks.ModelCheckpoint(checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,))
+    # Terminate on NaN such that it is easier to debug
+    callbacks.append(tf.keras.callbacks.TerminateOnNaN())
+    callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
+
+    # compile
+    model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate), loss=sqrtR_loss, metrics=[mean_pred])
+
+    # fit
+    history = model.fit(
+        X_train, Y_train,
+        batch_size=ops.batch_size,
+        epochs=ops.nepochs,
+        callbacks=callbacks,
+        verbose=1,
+        validation_data=(X_test,Y_test)
+    )
+
 
 def options():
     parser = argparse.ArgumentParser()
-    # input files
     parser.add_argument("-i", "--inFile", help="Input file.", default=None)
     parser.add_argument("-o", "--outDir", help="Output directory for plots", default="./")
     parser.add_argument("-nb", "--num_bootstraps", help="Number of trainings to perform for bootstrap.", default=2, type=int)
+    parser.add_argument("-bp", "--bootstrap_path", help="Path where bootstrap saved to", default=os.path.join('./checkpoints', f'bootstrap_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}'))
     parser.add_argument("-e", "--nepochs", help="Number of epochs.", default=1, type=int)
     parser.add_argument("-b", "--batch_size", help="Training batch size.", default=2048, type=int)
     parser.add_argument("-lr", "--learning_rate", help="Learning rate", default=1e-3, type=float)
