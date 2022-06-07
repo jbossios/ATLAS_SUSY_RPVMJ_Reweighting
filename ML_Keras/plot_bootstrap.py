@@ -89,6 +89,7 @@ def main():
     pred_files = handleInput(ops.predFile)
 
     for iP, pred_file in enumerate(pred_files):
+        print(f"Plotting bootstrap {iP}/{len(pred_files)}: {pred_file}")
 
         with np.load(pred_file, allow_pickle=True) as preds:
             # reweight
@@ -143,7 +144,7 @@ def options():
     return parser.parse_args()
 
 def handleInput(data):
-    elif os.path.isfile(data) and ".npz" in os.path.basename(data):
+    if os.path.isfile(data) and ".npz" in os.path.basename(data):
         return [data]
     elif os.path.isfile(data) and ".txt" in os.path.basename(data):
         return sorted([line.strip() for line in open(data,"r")])
