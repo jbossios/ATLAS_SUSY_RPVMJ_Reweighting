@@ -17,15 +17,14 @@ import pandas as pd
 import random as python_random
 import numpy as np
 from sklearn.model_selection import train_test_split
+import gc
 
 # custom imports
 try:
-    from make_model import make_model
-    # from get_data import get_data
+    from make_model import simple_model
     from get_sample import get_sample
 except:
-    from ML_Keras.make_model import make_model
-    # from ML_Keras.get_data import get_data
+    from ML_Keras.make_model import simple_model
     from ML_Keras.get_sample import get_sample
 
 # Tensorflow GPU settings
@@ -33,21 +32,17 @@ physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-# def weighted_binary_crossentropy(y_true, y_pred):
-#     weights = tf.gather(y_true, [1], axis=1) # event weights
-#     y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
-
-#     # Clip the prediction value to prevent NaN's and Inf's
-#     epsilon = K.epsilon()
-#     y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
-#     t_loss = -1 * ((y_true) * K.log(y_pred + epsilon) + (1 - y_true) * K.log(1 - y_pred + epsilon)) * weights 
-#     t_loss = K.mean(t_loss)
-#     # tf.print(y_true)
-#     # tf.print(t_loss)
-#     #tf.print(tf.reduce_sum(tf.cast((y_true - y_pred)<=0.1, tf.float32)))
-#     return t_loss
-
 def weighted_binary_crossentropy(y_true, y_pred):
+    weights = tf.gather(y_true, [1], axis=1) # event weights
+    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
+
+    # Clip the prediction value to prevent NaN's and Inf's
+    epsilon = K.epsilon()
+    y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
+    t_loss = -1 * ((y_true) * K.log(y_pred + epsilon) + (1 - y_true) * K.log(1 - y_pred + epsilon)) * weights 
+    return K.mean(t_loss)
+
+def sqrtR_loss(y_true, y_pred):
     weights = tf.gather(y_true, [1], axis=1) # event weights
     y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
     
@@ -55,14 +50,12 @@ def weighted_binary_crossentropy(y_true, y_pred):
     epsilon = K.epsilon()
     y_pred = K.clip(y_pred, epsilon, 1. - epsilon)
     
-    # might need to apply weights
+    # loss
     loss = K.sum(K.sqrt(tf.boolean_mask(y_pred,y_true==0)) * tf.boolean_mask(weights,y_true==0))
     loss += K.sum(1/K.sqrt(tf.boolean_mask(y_pred,y_true==1)) * tf.boolean_mask(weights,y_true==1))
-    #loss = K.mean(K.sqrt(tf.boolean_mask(y_pred,y_true==0))) + K.mean(1/K.sqrt(tf.boolean_mask(y_pred,y_true==1)))
     return loss
 
-# This function keeps the initial learning rate for the first ten epochs
-# and decreases it exponentially after that.
+# This function keeps the initial learning rate for the first N epochs and decreases it exponentially after that.
 def scheduler(epoch, lr):
   if epoch < 5:
     return lr
@@ -107,83 +100,55 @@ def main(config = None):
         sys.exit(1)
 
     # training configuration
-    if "num_samples" not in conf or conf["num_samples"] is None:  # use size of input sample
+    if "num_samples" not in conf or conf["num_samples"] is None:
         with h5py.File(conf["file"],"r") as hf:
-            # conf["num_samples"] = hf["nQuarkJets"]['values'].shape[0]
             conf["num_samples"] = hf['EventVars']['HT'].shape[0]
-    conf["train_steps_per_epoch"] = conf["num_samples"] // conf["train_batch_size"]
     log.info("Training configuration: \n" + json.dumps(conf, indent=4, sort_keys=True))
 
     # data set generators
     seed = None
     if "seed" in conf and conf["seed"] is not None:
         seed = conf["seed"]
-    # train_data_gen = get_data(conf["file"], conf["nepochs"], conf["train_batch_size"], seed)
-    # # sample validation data from the same probability density function (but generated val data is statistically independent w.r.t training data)
-    # val_data_gen = get_data(conf["file"], conf["nepochs"], conf["val_batch_size"], seed+1 if seed is not None else None)
-
-    # load this once
     
-    f = h5py.File(conf["file"],"r")
     # cuts used
     cut_minAvgMass = 750
     # grep ScoreCut /cvmfs/atlas.cern.ch/repo/sw/software/21.2/AnalysisBase/21.2.214/InstallArea/x86_64-centos7-gcc8-opt/data/BoostedJetTaggers/JetQGTaggerBDT/JetQGTaggerBDT*
-    # 50%: (x<200)*(-0.000714*x-0.0121) + (x>=200)*-0.155
-    # 80%: 0.05
-    # 90%: 0.14
+    # 50%: (x<200)*(-0.000714*x-0.0121) + (x>=200)*-0.155, 80%: 0.05, 90%: 0.14
     cut_QGTaggerBDT = 0.14
     cut_nQuarkJets = 2
-    # precompute indices
-    # minAvgMass = np.array(f['EventVars']['minAvgMass'])
-    # low_minAvgMass = np.where(minAvgMass < cut_minAvgMass)[0] 
-    # # only keep these loaded in memory
-    # minAvgMass = minAvgMass[low_minAvgMass]
-    # normweight = np.array(f['normweight']['normweight'])[low_minAvgMass]
-    # #normweight = np.ones(normweight.shape)
-    # nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)[low_minAvgMass]
-    # # fourmom = np.stack([f['source']['mass'], f['source']['pt'], f['source']['eta'], f['source']['phi']],-1)[low_minAvgMass]
-    # HT = np.array(f['EventVars']['HT'])[low_minAvgMass] 
-    # # # place ht cut
-    # # low_HT = np.where(HT < 3000)[0]
-    # # HT = HT[low_HT]
-    # # nQuarkJets = nQuarkJets[low_HT]
-    # # normweight = normweight[low_HT]
-    # # standardize
-    # HT = (HT - np.mean(HT))/np.std(HT)
-    # Y = np.stack([nQuarkJets >= cut_nQuarkJets, normweight],axis=-1)
-    # HT_train, HT_test, Y_train, Y_test = train_test_split(HT, Y, test_size=0.5, shuffle=True)
-    # print(f"Train shapes ({HT_train.shape},{Y_train.shape}), Test shapes ({HT_test.shape},{Y_test.shape})")
-    # print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
     
-    # pick up variables from file
-    #HT = np.array(f['EventVars']['HT'])
-    HT = np.stack([np.array(f['EventVars']['HT']),
-                   np.array(f['EventVars']['deta']),
-                   np.array(f['EventVars']['djmass']),
-                   np.array(f['EventVars']['minAvgMass']),
-                   np.array(f['source']['pt'][:,0])
-               ],-1)
-    minAvgMass = np.array(f['EventVars']['minAvgMass'])
-    nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
-    normweight = np.array(f['normweight']['normweight'])
-    #normweight = np.ones(normweight.shape)
-    print(f"Number of events: {minAvgMass.shape[0]}")
+    # load this once
+    with h5py.File(conf["file"],"r") as f:
+        # pick up variables from file
+        x = np.stack([
+                np.array(f['EventVars']['HT']),
+                np.array(f['EventVars']['deta']),
+                np.array(f['EventVars']['djmass']),
+                np.array(f['EventVars']['minAvgMass']),
+                np.array(f['source']['pt'][:,0])
+           ],-1)
+        minAvgMass = np.array(f['EventVars']['minAvgMass'])
+        nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
+        normweight = np.array(f['normweight']['normweight'])
+        print(f"Number of events: {minAvgMass.shape[0]}")
+
     # Create cuts to Reweight A -> C
     RegA = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
     RegC = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
     print(f"Number of events in A and C: {RegA.sum()}, {RegC.sum()}")
+    del minAvgMass, nQuarkJets
+    gc.collect()
+
     # get events per region
-    RegA_ht = HT[RegA]
+    RegA_x = x[RegA]
     RegA_weights = normweight[RegA]
     RegA_y = np.zeros(RegA_weights.shape)
-    RegC_ht = HT[RegC]
+    RegC_x = x[RegC]
     RegC_weights = normweight[RegC]
     RegC_y = np.ones(RegC_weights.shape)
+    del x, normweight
+    gc.collect()
     
-    # convert weights to probabilities
-    #RegA_weights /= RegA_weights.sum()
-    #RegC_weights /= RegC_weights.sum()
-
     # # normalize reg A and reg C to have same total weight to begin with
     # if RegC_weights.sum() > RegA_weights.sum():
     #     RegA_weights = RegC_weights.sum()/RegA_weights.sum() * RegA_weights
@@ -202,28 +167,24 @@ def main(config = None):
     # RegC_y = RegC_y[RegC_idx]
     
     # combine with same statistics
-    nEvents = -1 #min(RegA_y.shape[0],RegC_y.shape[0])
+    nEventsA = -1 #min(RegA_y.shape[0],RegC_y.shape[0])
     nEventsC = -1 #2*nEvents
-    X = np.concatenate([RegA_ht[:nEvents],RegC_ht[:nEventsC]])
-    Y = np.concatenate([RegA_y[:nEvents],RegC_y[:nEventsC]])
-    W = np.concatenate([RegA_weights[:nEvents],RegC_weights[:nEventsC]])
+    X = np.concatenate([RegA_x[:nEventsA],RegC_x[:nEventsC]])
+    Y = np.concatenate([RegA_y[:nEventsA],RegC_y[:nEventsC]])
+    W = np.concatenate([RegA_weights[:nEventsA],RegC_weights[:nEventsC]])
     Y = np.stack([Y,W],axis=-1)
-    
+    del RegA_x, RegA_weights, RegA_y, RegC_x, RegC_weights, RegC_y
+    gc.collect()
+
     # standardize
     X = (X - np.mean(X,0))/np.std(X,0)
-    #X = (X - np.mean(X))/np.std(X)
     print(np.mean(X), np.std(X), X.shape, Y.shape)
     
     # split
-    HT_train, HT_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.85, shuffle=True)
-    print(f"Train shapes ({HT_train.shape},{Y_train.shape}), Test shapes ({HT_test.shape},{Y_test.shape})")
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.75, shuffle=True)
+    print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
     print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
 
-    # probabilities = normweight / normweight.sum()
-    # probabilities = np.ones(normweight.shape)/normweight.shape[0] # uniform probability but weight the loss function
-    # train_data_gen = get_sample(HT, nQuarkJets, normweight, probabilities, conf["train_batch_size"], cut_nQuarkJets) # update to four momentum when ready
-    # val_data_gen = get_sample(HT, nQuarkJets, normweight, probabilities, conf["val_batch_size"], cut_nQuarkJets)
-    
     # set seeds to get reproducible results (only if requested)
     if seed is not None:
         try:
@@ -234,46 +195,30 @@ def main(config = None):
             tf.keras.utils.set_random_seed(seed)
 
     # make model
-    model = make_model(input_dim=HT.shape[1], ndense=conf["ndense"], nnode_per_dense=conf["nnode_per_dense"], learning_rate=conf["learning_rate"], loss=weighted_binary_crossentropy)
+    model = simple_model(input_dim=x.shape[1], learning_rate=conf["learning_rate"], loss=sqrtR_loss)
     model.summary()
 
     # make callbacks
     callbacks = []
-    # EarlyStopping
-    early_stopping = tf.keras.callbacks.EarlyStopping(
-        patience=10, mode="min", restore_best_weights=True #, monitor="val_loss"
-    )
-    callbacks.append(early_stopping)
+    callbacks.append(tf.keras.callbacks.EarlyStopping(patience=10, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
     # ModelCheckpoint
     checkpoint_filepath = f'./checkpoints/training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}/' + "cp-{epoch:04d}.ckpt"
     checkpoint_dir = os.path.dirname(checkpoint_filepath)
     if not os.path.isdir(checkpoint_dir):
         os.makedirs(checkpoint_dir)
-    model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,
-    )
-    callbacks.append(model_checkpoint)
+    callbacks.append(tf.keras.callbacks.ModelCheckpoint(checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,))
     # Terminate on NaN such that it is easier to debug
     callbacks.append(tf.keras.callbacks.TerminateOnNaN())
     callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
-    # train
-    # history = model.fit(
-    #     train_data_gen,
-    #     steps_per_epoch=conf["train_steps_per_epoch"],
-    #     epochs=conf["nepochs"],
-    #     callbacks=callbacks,
-    #     verbose=1,
-    #     validation_data=val_data_gen,
-    #     validation_steps=conf["validation_steps"]
-    # )
 
+    # train
     history = model.fit(
-        HT_train, Y_train,
+        X_train, Y_train,
         batch_size=ops.train_batch_size,
         epochs=conf["nepochs"],
         callbacks=callbacks,
         verbose=1,
-        validation_data=(HT_test,Y_test)
+        validation_data=(X_test,Y_test)
     )
 
     # Get training history
@@ -295,8 +240,8 @@ def main(config = None):
 def options():
     parser = argparse.ArgumentParser()
     # input files
-    parser.add_argument("-c",  "--conf", help="Configuration file. If provided, all other settings are overruled.", default=None)
-    parser.add_argument("-i",  "--inFile", help="Input file.", default=None)
+    parser.add_argument("-c", "--conf", help="Configuration file. If provided, all other settings are overruled.", default=None)
+    parser.add_argument("-i", "--inFile", help="Input file.", default=None)
     parser.add_argument("-o", "--outDir", help="Output directory for plots", default="./")
     # train settings
     parser.add_argument("-ne", "--nepochs", help="Number of epochs.", default=1, type=int)
