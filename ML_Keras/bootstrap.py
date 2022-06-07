@@ -99,54 +99,25 @@ def main(config = None):
     X = (X - np.mean(X,0))/np.std(X,0)
     print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
 
-    # define model
-    # model = simple_model(input_dim=X.shape[1])
-
-    # define bootstrap path
-    # bootstrap_path = os.path.join('./checkpoints', f'bootstrap_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}')
-
+    # prepare confs
+    confs = []
     for iB in range(ops.num_bootstraps):
+        confs.append({"X":X,"Y":Y})
 
-        # split data
-        # X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.75, shuffle=True)
-        # print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
-        # print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
+    # launch jobs
+    if len(ops.ncpu) == 1:
+        for conf in confs:
+            train(conf)
+    else:
+        results = mp.Pool(ops.ncpu).map(train, confs)
 
-        # # make callbacks
-        # callbacks = []
-        # callbacks.append(tf.keras.callbacks.EarlyStopping(patience=30, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
-        # # ModelCheckpoint
-        # checkpoint_filepath = os.path.join(bootstrap_path, f'training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}', "cp-{epoch:04d}.ckpt")
-        # checkpoint_dir = os.path.dirname(checkpoint_filepath)
-        # if not os.path.isdir(checkpoint_dir):
-        #     os.makedirs(checkpoint_dir)
-        # callbacks.append(tf.keras.callbacks.ModelCheckpoint(checkpoint_filepath, monitor="val_loss", mode="min", save_best_only=False, save_weights_only=True,))
-        # # Terminate on NaN such that it is easier to debug
-        # callbacks.append(tf.keras.callbacks.TerminateOnNaN())
-        # callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
-
-        # # compile
-        # model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate), loss=sqrtR_loss, metrics=[mean_pred])
-
-        # # fit
-        # history = model.fit(
-        #     X_train, Y_train,
-        #     batch_size=ops.batch_size,
-        #     epochs=ops.nepochs,
-        #     callbacks=callbacks,
-        #     verbose=1,
-        #     validation_data=(X_test,Y_test)
-        # )
-
-        train(X,Y)
-
-def train(X, Y):
+def train(conf):
 
     # user options
     ops = options()
 
     # split data
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.75, shuffle=True)
+    X_train, X_test, Y_train, Y_test = train_test_split(conf["X"], conf["Y"], test_size=0.75, shuffle=True)
     print(f"Train shapes ({X_train.shape},{Y_train.shape}), Test shapes ({X_test.shape},{Y_test.shape})")
     print(f"Train ones ({Y_train[:,0].sum()/Y_train.shape[0]}), Test ones ({Y_test[:,0].sum()/Y_test.shape[0]})")
 
@@ -188,6 +159,7 @@ def options():
     parser.add_argument("-b", "--batch_size", help="Training batch size.", default=2048, type=int)
     parser.add_argument("-lr", "--learning_rate", help="Learning rate", default=1e-3, type=float)
     parser.add_argument("-s", "--seed", help="Seed for TensorFlow and NumPy", default=None, type=int)
+    parser.add_argument("-j",  "--ncpu", help="Number of cores to use for multiprocessing. If not provided multiprocessing not done.", default=1, type=int)
     return parser.parse_args()
 
 if __name__ == "__main__":
