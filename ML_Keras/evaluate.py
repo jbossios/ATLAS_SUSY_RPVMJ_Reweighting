@@ -22,11 +22,9 @@ import gc
 
 # custom code
 try:
-    from get_data import get_full_data
-    from make_model import simple_model
+    from make_model import simple_model, sqrtR_loss, mean_pred
 except:
-    from ML_Keras.get_data import get_full_data
-    from ML_Keras.make_model import simple_model
+    from ML_Keras.make_model import simple_model, sqrtR_loss, mean_pred
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -126,7 +124,7 @@ def main(config = None):
 
     # load model
     model = simple_model(input_dim=RegA_x.shape[1])
-    model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate),loss=sqrtR_loss,metrics=[mean_pred])
+    model.compile(loss=sqrtR_loss,metrics=[mean_pred])
     model.summary()
     
     # if checkpoint directory provided use the latest
