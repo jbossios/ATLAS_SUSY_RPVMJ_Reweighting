@@ -102,7 +102,7 @@ def main(config = None):
     # prepare confs
     confs = []
     for iB in range(ops.num_bootstraps):
-        confs.append({"X":X,"Y":Y})
+        confs.append({"iB":iB,"X":X,"Y":Y,"bootstrap_path":ops.bootstrap_path})
 
     # launch jobs
     if ops.ncpu == 1:
@@ -117,7 +117,7 @@ def train(conf):
     ops = options()
 
     # ModelCheckpoint
-    checkpoint_filepath = os.path.join(ops.bootstrap_path, f'training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}', "cp-{epoch:04d}.ckpt")
+    checkpoint_filepath = os.path.join(conf["bootstrap_path"], f'training_{conf["iB"]}', "cp-{epoch:04d}.ckpt")
     checkpoint_dir = os.path.dirname(checkpoint_filepath)
     if not os.path.isdir(checkpoint_dir):
         os.makedirs(checkpoint_dir)
