@@ -169,7 +169,7 @@ def main(config = None):
 
     # make callbacks
     callbacks = []
-    callbacks.append(tf.keras.callbacks.EarlyStopping(patience=10, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
+    callbacks.append(tf.keras.callbacks.EarlyStopping(patience=30, mode="min", restore_best_weights=True)) #, monitor="val_loss"))
     # ModelCheckpoint
     checkpoint_filepath = f'./checkpoints/training_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}/' + "cp-{epoch:04d}.ckpt"
     checkpoint_dir = os.path.dirname(checkpoint_filepath)

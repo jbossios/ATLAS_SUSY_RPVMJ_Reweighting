@@ -55,10 +55,10 @@ def main(config = None):
     log = logging.getLogger()
 
     # user options
+    ops = options()
     if config is not None:
         conf = config
     else:
-        ops = options()
         if ops.conf:
             with open(ops.conf) as f:
                 log.info(f"opening {ops.conf}")
@@ -153,13 +153,13 @@ def main(config = None):
     ax.set_ylabel("Density of Events")
     ax.set_yscale("log")
     bins = np.linspace(0, 13000, 100)
-    c0, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_weights, label = rf'RegA NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=False, histtype="step", lw=2)
-    c1, bin_edges, _ = ax.hist(RegC_ht, bins = bins, weights = RegC_weights, label = rf'RegC NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=False, histtype="step", lw=2)
-    c2, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_reweighted, label = rf'Reweight RegA $\rightarrow$ RegC', color = colors[2], density=False, histtype="step", lw=2) 
+    c0, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_weights, label = rf'RegA NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=ops.density, histtype="step", lw=2)
+    c1, bin_edges, _ = ax.hist(RegC_ht, bins = bins, weights = RegC_weights, label = rf'RegC NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=ops.density, histtype="step", lw=2)
+    c2, bin_edges, _ = ax.hist(RegA_ht, bins = bins, weights = RegA_reweighted, label = rf'Reweight RegA $\rightarrow$ RegC', color = colors[2], density=ops.density, histtype="step", lw=2) 
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegA $/$ RegC', color = colors[0], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegA $/$ RegC', color = colors[2], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
-    ax.legend(title=rf"minAvgMass $<$ {cut_minAvgMass} GeV", loc="upper right", prop={'size': 8}, framealpha=0.0)
+    ax.legend(title=rf"minAvgMass $<$ {cut_minAvgMass} GeV", loc="best", prop={'size': 8}, framealpha=0.0)
     # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,'reweightAtoC.pdf'), bbox_inches="tight")
 
@@ -177,13 +177,13 @@ def main(config = None):
     ax.set_ylabel("Density of Events")
     ax.set_yscale("log")
     bins = np.linspace(0, 13000, 100)
-    c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=False, histtype="step", lw=2)
-    c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=False, histtype="step", lw=2)
-    c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_reweighted, label = rf'Reweight RegB $\rightarrow$ RegD', color = colors[2], density=False, histtype="step", lw=2) 
+    c0, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_weights, label = rf'RegB NQuarkJets $<$ {cut_nQuarkJets}', color = colors[0], density=ops.density, histtype="step", lw=2)
+    c1, bin_edges, _ = ax.hist(RegD_ht, bins = bins, weights = RegD_weights, label = rf'RegD NQuarkJets $\geq$ {cut_nQuarkJets}', color = colors[1], density=ops.density, histtype="step", lw=2)
+    c2, bin_edges, _ = ax.hist(RegB_ht, bins = bins, weights = RegB_reweighted, label = rf'Reweight RegB $\rightarrow$ RegD', color = colors[2], density=ops.density, histtype="step", lw=2) 
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'RegB $/$ RegD', color = colors[0], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Reweighted RegB $/$ RegD', color = colors[2], lw=1)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
-    ax.legend(title=rf"minAvgMass $\geq$ {cut_minAvgMass} GeV", loc="upper left", prop={'size': 8}, framealpha=0.0)
+    ax.legend(title=rf"minAvgMass $\geq$ {cut_minAvgMass} GeV", loc="best", prop={'size': 8}, framealpha=0.0)
     # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,'reweightBtoD.pdf'), bbox_inches="tight")
     
@@ -200,6 +200,7 @@ def options():
     parser.add_argument("-i",  "--inFile", help="Input file.", default=None)
     parser.add_argument("-o",  "--outDir", help="Output directory", default="./")
     parser.add_argument("-m",  "--model_weights", help="Model weights.", default=None)
+    parser.add_argument("-d", "--density", help="Make plots density=True", action="store_true")
     return parser.parse_args()
 
 if __name__ == "__main__":
