@@ -27,11 +27,6 @@ def main(config=None):
     # user options
     ops = options()
 
-    # protection
-    if ops.model_weights is None:
-        log.error('ERROR: no model weights were provided, exiting')
-        sys.exit(1)
-
     # load file
     with h5py.File(conf["file"], "r") as f:
         # pick up variables from file
@@ -51,11 +46,11 @@ def main(config=None):
     # if checkpoint directory provided use the latest
     if os.path.isdir(ops.model_weights):
         latest = tf.train.latest_checkpoint(ops.model_weights)
-        log.info(f"Using latest weights from checkpoint directory: {latest}")°
+        print(f"Using latest weights from checkpoint directory: {latest}")
         model.load_weights(latest).expect_partial()
     elif ops.model_weights == "1":
         latest = tf.train.latest_checkpoint(glob.glob("checkpoints/*")[-1])
-        log.info(f"Using latest weights from checkpoint directory: {latest}")
+        print(f"Using latest weights from checkpoint directory: {latest}")
         model.load_weights(latest).expect_partial()
     else:
         model.load_weights(ops.model_weights).expect_partial()
