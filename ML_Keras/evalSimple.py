@@ -28,7 +28,7 @@ def main(config=None):
     ops = options()
 
     # load file
-    with h5py.File(conf["file"], "r") as f:
+    with h5py.File(ops.inFile, "r") as f:
         # pick up variables from file
         x = np.stack([
             np.array(f['EventVars']['HT']),
