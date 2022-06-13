@@ -39,7 +39,7 @@ def main(config=None):
         ], -1)
 
     # load model
-    model = simple_model(input_dim=RegA_x.shape[1])
+    model = simple_model(input_dim=x.shape[1])
     model.compile(loss=sqrtR_loss, metrics=[mean_pred])
     model.summary()
 
@@ -56,10 +56,10 @@ def main(config=None):
         model.load_weights(ops.model_weights).expect_partial()
 
     # make prediction
-        pred = model.predict(x, batch_size=10000).flatten()
+    pred = model.predict(x, batch_size=10000).flatten()
 
-        # save to file
-        np.save(os.path.join(ops.outDir, "pred.npy"), pred)
+    # save to file
+    np.save(os.path.join(ops.outDir, "pred.npy"), pred)
 
 
 def options():
