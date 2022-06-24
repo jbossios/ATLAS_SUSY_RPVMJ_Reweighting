@@ -11,6 +11,7 @@ import os
 import uproot
 import awkward as ak
 import gc
+from glob import glob
 
 # custom code
 try:
@@ -44,6 +45,10 @@ def main():
     # get list of ttrees using the first input file
     treeNames = ["trees_SRRPV_"]
     
+    # get list of model weights
+    model_weights = handleInput(ops.model_weights)
+    model_weights = [i for i in model_weights if "training" in i]
+
     # make output dir
     if not os.path.isdir(ops.outDir):
         os.makedirs(ops.outDir)
@@ -57,7 +62,8 @@ def main():
         config.append({
             "inFileName" : inFileName,
             "treeNames" : treeNames,
-            "tag" : tag
+            "tag" : tag,
+            "model_weights" : model_weights
         })
 
     # launch jobs
@@ -76,9 +82,8 @@ def handleInput(data):
     elif os.path.isfile(data) and ".txt" in os.path.basename(data):
         return sorted([line.strip() for line in open(data,"r")])
     elif os.path.isdir(data):
-        return sorted(os.listdir(data))
+        return [os.path.join(data,i) for i in sorted(os.listdir(data))]
     elif "*" in data:
-        from glob import glob
         return sorted(glob(data))
     return []
 
@@ -164,22 +169,29 @@ def evaluate(config):
         model.compile(loss=sqrtR_loss, metrics=[mean_pred])
         # model.summary()
 
-        # if checkpoint directory provided use the latest
-        if os.path.isdir(ops.model_weights):
-            latest = tf.train.latest_checkpoint(ops.model_weights)
-            log.info(f"Using latest weights from checkpoint directory: {latest}")
-            model.load_weights(latest).expect_partial()
-        elif ops.model_weights == "1":
-            latest = tf.train.latest_checkpoint(glob.glob("checkpoints/*")[-1])
-            log.info(f"Using latest weights from checkpoint directory: {latest}")
-            model.load_weights(latest).expect_partial()
-        else:
-            model.load_weights(ops.model_weights).expect_partial()
+        # loop over model weights
+        predictions = []
+        for model_weights in config["model_weights"]:
+            # if checkpoint directory provided use the latest
+            if os.path.isdir(model_weights):
+                latest = tf.train.latest_checkpoint(model_weights)
+                log.info(f"Using latest weights from checkpoint directory: {latest}")
+                model.load_weights(latest).expect_partial()
+            elif model_weights == "1":
+                latest = tf.train.latest_checkpoint(glob.glob("checkpoints/*")[-1])
+                log.info(f"Using latest weights from checkpoint directory: {latest}")
+                model.load_weights(latest).expect_partial()
+            else:
+                model.load_weights(model_weights).expect_partial()
 
-        # make prediction
-        pred = model.predict(X, batch_size=10000).flatten()
-        log.debug(f"Model prediction shape {pred.shape}")
-        outData[treeName] = {"reweighting": pred}
+            # make prediction
+            pred = model.predict(X, batch_size=10000).flatten()
+            predictions.append(pred)
+
+        # stack
+        predictions = np.stack(predictions,-1)
+        log.debug(f"Model prediction shape {predictions.shape}")
+        outData[treeName] = {"reweighting": predictions}
 
     # save to file
     log.info(f"Saving: {outFileName}")
