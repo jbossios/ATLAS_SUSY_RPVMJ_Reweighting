@@ -109,6 +109,13 @@ def evaluate(config):
             with uproot.open(config["inFileName"]) as f:
                 tree = f[treeName]
 
+                if tree.num_entries == 0:
+                    log.info(f"Skipping file because no entries: {config['inFileName']}")
+                    return
+                if "jet_e" not in tree.keys():
+                    log.info(f"Skipping file because no key jet_e: {inFile}")
+                    return
+
                 # load kinematics for training
                 kinem = {}
                 jetBranches = ["jet_pt","jet_eta","jet_phi","jet_e"]
@@ -160,6 +167,10 @@ def evaluate(config):
                     np.array(f['EventVars']['minAvgMass']),
                     np.array(f['source']['pt'][:, 0])
                 ], -1)
+
+        # check number of entries
+        if X.shape[0] == 0:
+            log.info(f"Skipping file because X has no entries: {config['inFileName']}")
 
         # standardize input
         X = (X - np.mean(X,0))/np.std(X,0)
