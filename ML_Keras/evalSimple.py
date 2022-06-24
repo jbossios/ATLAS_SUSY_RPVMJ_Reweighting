@@ -113,7 +113,7 @@ def evaluate(config):
                     log.info(f"Skipping file because no entries: {config['inFileName']}")
                     return
                 if "jet_e" not in tree.keys():
-                    log.info(f"Skipping file because no key jet_e: {inFile}")
+                    log.info(f"Skipping file because no key jet_e: {config['inFileName']}")
                     return
 
                 # load kinematics for training
