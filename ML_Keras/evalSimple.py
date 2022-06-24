@@ -88,7 +88,7 @@ def evaluate(config):
     ops = options()
 
     # make output file name
-    outFileName = os.path.join(ops.outDir, os.path.basename(config["inFileName"]).strip(".root").strip(".h5") + f"{config['tag']}_reweighting.h5")
+    outFileName = os.path.join(ops.outDir, os.path.basename(config["inFileName"]).strip(".root").strip(".h5") + f"_{config['tag']}_reweighting.h5")
     if os.path.isfile(outFileName) and not ops.doOverwrite:
         log.info(f"Skipping because output file already exists: {outFileName}")
         return
@@ -167,11 +167,11 @@ def evaluate(config):
         # if checkpoint directory provided use the latest
         if os.path.isdir(ops.model_weights):
             latest = tf.train.latest_checkpoint(ops.model_weights)
-            print(f"Using latest weights from checkpoint directory: {latest}")
+            log.info(f"Using latest weights from checkpoint directory: {latest}")
             model.load_weights(latest).expect_partial()
         elif ops.model_weights == "1":
             latest = tf.train.latest_checkpoint(glob.glob("checkpoints/*")[-1])
-            print(f"Using latest weights from checkpoint directory: {latest}")
+            log.info(f"Using latest weights from checkpoint directory: {latest}")
             model.load_weights(latest).expect_partial()
         else:
             model.load_weights(ops.model_weights).expect_partial()
