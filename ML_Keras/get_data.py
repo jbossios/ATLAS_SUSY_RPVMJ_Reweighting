@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import random
+from sklearn.model_selection import train_test_split
 
 # Need the following to run on LXPLUS
 import matplotlib
@@ -80,6 +81,101 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, seed: int = N
           plt.savefig('compare_sampled_data.pdf')  # TODO: improve output name
         yield np.array(ht_sample_shaped), np.array(flags_sample_shaped)
 
+def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: int = None, train: bool = True, test_sample: bool = False):
+  """
+  Sample nepochs batches of size batch_size
+  On each batch, data is sampled from pdfs constructed using weighted distributions
+  data is sampled from the corresponding pdf based on probabilities
+  *** Returns a generator ***
+  """
+  # cuts used
+  cut_minAvgMass = 750
+  cut_QGTaggerBDT = 0.14
+  cut_nQuarkJets = 2
+  with h5py.File(file_name, 'r') as f:
+    # pick up variables from file
+    x = np.stack([
+                np.array(f['EventVars']['HT']),
+                np.array(f['EventVars']['deta']),
+                np.array(f['EventVars']['djmass']),
+                np.array(f['EventVars']['minAvgMass']),
+                np.array(f['source']['pt'][:,0])
+           ],-1)
+    minAvgMass = np.array(f['EventVars']['minAvgMass'])
+    nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
+    normweight = np.array(f['normweight']['normweight'])
+    # normweight = np.sqrt(normweight)
+    nEvents = minAvgMass.shape[0]
+    #print(f"Number of events: {nEvents}")
+        
+    # For each batch, learn 0->1 or 1->2.
+    # For 0->1, train without cuts. For 1->2, we need the minavg cut.
+    # Whether we learn 0->1 or 1->2 is random for each batch, or alternate, one each.
+    while True:
+      #define minavg_cut
+      minavg_cut = bool(random.getrandbits(1))
+      if minavg_cut:
+        # Reweight 1->2. Create cuts to Reweight A -> C
+        print('Reweight 1->2')
+        RegA = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets == 1)
+        RegC = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+      else:
+        # Reweight 0->1. No cuts, reweight the whole distribution
+        print('Reweight 0->1')
+        RegA = nQuarkJets == 0
+        RegC = nQuarkJets == 1
+      RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)
+      RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+      #print(f"Number of events in A and C: {np.sum(RegA)}, {np.sum(RegC)}")
+      #print(f"Number of events in B and D: {np.sum(RegB)}, {np.sum(RegD)}")
+
+      # get events per region
+      RegA_x = x[RegA]
+      RegA_weights = normweight[RegA]
+      RegA_y = np.zeros(RegA_weights.shape)
+      RegC_x = x[RegC]
+      RegC_weights = normweight[RegC]
+      RegC_y = np.ones(RegC_weights.shape)
+      # just for evaluation get region B and D
+      RegB_x = x[RegB]
+      RegD_x = x[RegD]
+      # return the full sample if not train       
+      if not train:
+        print('Full sample for evaluation:')
+        # normalize for prediction
+        RegA_x = (RegA_x-np.mean(RegA_x,0))/np.std(RegA_x,0)
+        RegC_x = (RegC_x-np.mean(RegC_x,0))/np.std(RegC_x,0)
+        RegB_x = (RegB_x-np.mean(RegB_x,0))/np.std(RegB_x,0)
+        RegD_x = (RegD_x-np.mean(RegD_x,0))/np.std(RegD_x,0)
+        return RegA_x, RegB_x, RegD_x, RegC_x
+      else:  
+        print("Get tarining and validation samples.")
+        # combine with same statistics
+        nEventsA = -1 #min(RegA_y.shape[0],RegC_y.shape[0])
+        nEventsC = -1 #2*nEvents
+        X = np.concatenate([RegA_x[:nEventsA],RegC_x[:nEventsC]])
+        Y = np.concatenate([RegA_y[:nEventsA],RegC_y[:nEventsC]])
+        W = np.concatenate([RegA_weights[:nEventsA],RegC_weights[:nEventsC]])
+        Y = np.stack([Y,W],axis=-1)
+
+        # standardize
+        X = (X - np.mean(X,0))/np.std(X,0)
+        #print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
+              
+        # Prepare batches of data
+        nbatch = int(nEvents/batch_size)
+        for ibatch in range(nbatch):
+          # Sample the events in to batches 
+          X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.25, shuffle=True)
+          batch_ind = np.random.randint(0,X_train.shape[0],batch_size)
+          X_train = X_train[batch_ind]
+          Y_train = Y_train[batch_ind]
+          if test_sample:
+            yield X_test, Y_test
+          else:
+            yield X_train, Y_train
+
+
 def get_full_data(file_name: str) -> Tuple[np.array, np.array, np.array]:
   """
   Get full (actual) data from input H5 file (not sampling from pdfs!)
@@ -96,7 +192,7 @@ def get_full_data(file_name: str) -> Tuple[np.array, np.array, np.array]:
     return ht, nQuarkJets, wgt
 
 if __name__ == '__main__':
-  X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, None, True))
+  X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v2/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, None, True))
   print(f'X[0] = {X[0]}')
   print(f'y[0] = {y[0]}')
   # X, y, wgt = get_full_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5')
