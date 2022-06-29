@@ -9,6 +9,7 @@ matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 from typing import Tuple
+import time
 
 def get_data(file_name: str, nepochs: int, batch_size: int = 2048, seed: int = None, debug: bool = False): # FIXME add return type hint
   """
@@ -107,38 +108,34 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
     # normweight = np.sqrt(normweight)
     nEvents = minAvgMass.shape[0]
     #print(f"Number of events: {nEvents}")
-        
-    # For each batch, learn 0->1 or 1->2.
-    # For 0->1, train without cuts. For 1->2, we need the minavg cut.
-    # Whether we learn 0->1 or 1->2 is random for each batch, or alternate, one each.
-    while True:
-      #define minavg_cut
-      minavg_cut = bool(random.getrandbits(1))
-      if minavg_cut:
-        # Reweight 1->2. Create cuts to Reweight A -> C
-        print('Reweight 1->2')
-        RegA = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets == 1)
-        RegC = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-      else:
-        # Reweight 0->1. No cuts, reweight the whole distribution
-        print('Reweight 0->1')
-        RegA = nQuarkJets == 0
-        RegC = nQuarkJets == 1
-      RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)
-      RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-      #print(f"Number of events in A and C: {np.sum(RegA)}, {np.sum(RegC)}")
-      #print(f"Number of events in B and D: {np.sum(RegB)}, {np.sum(RegD)}")
-
+    """  
+    For each batch, learn 0->1 or 1->2.
+    For 0->1, train without cuts. For 1->2, we need the minavg cut.
+    Whether we learn 0->1 or 1->2 is alternate for each batch.
+    """
+    # Reweight 1->2. Create cuts to reweight A -> C
+    RegA_12 = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets == 1)
+    RegC_12 = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    # Reweight 0->1. 
+    RegA_01 = nQuarkJets == 0
+    RegC_01 = nQuarkJets == 1
+    # Evaluate B->D.
+    RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)
+    RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    
+    def get_events(RegA, RegC):
       # get events per region
       RegA_x = x[RegA]
       RegA_weights = normweight[RegA]
       RegA_y = np.zeros(RegA_weights.shape)
+
       RegC_x = x[RegC]
       RegC_weights = normweight[RegC]
       RegC_y = np.ones(RegC_weights.shape)
-      # just for evaluation get region B and D
+
       RegB_x = x[RegB]
       RegD_x = x[RegD]
+
       # return the full sample if not train       
       if not train:
         print('Full sample for evaluation:')
@@ -148,32 +145,46 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
         RegB_x = (RegB_x-np.mean(RegB_x,0))/np.std(RegB_x,0)
         RegD_x = (RegD_x-np.mean(RegD_x,0))/np.std(RegD_x,0)
         return RegA_x, RegB_x, RegD_x, RegC_x
-      else:  
-        print("Get tarining and validation samples.")
-        # combine with same statistics
-        nEventsA = -1 #min(RegA_y.shape[0],RegC_y.shape[0])
-        nEventsC = -1 #2*nEvents
-        X = np.concatenate([RegA_x[:nEventsA],RegC_x[:nEventsC]])
-        Y = np.concatenate([RegA_y[:nEventsA],RegC_y[:nEventsC]])
-        W = np.concatenate([RegA_weights[:nEventsA],RegC_weights[:nEventsC]])
-        Y = np.stack([Y,W],axis=-1)
+      # combine with same statistics
+      nEventsA = -1 #min(RegA_y.shape[0],RegC_y.shape[0])
+      nEventsC = -1 #2*nEvents
+      X = np.concatenate([RegA_x[:nEventsA],RegC_x[:nEventsC]])
+      Y = np.concatenate([RegA_y[:nEventsA],RegC_y[:nEventsC]])
+      W = np.concatenate([RegA_weights[:nEventsA],RegC_weights[:nEventsC]])
+      Y = np.stack([Y,W],axis=-1)
+      # standardize
+      X = (X - np.mean(X,0))/np.std(X,0)
+      #print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
+      return X, Y
 
-        # standardize
-        X = (X - np.mean(X,0))/np.std(X,0)
-        #print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
-              
-        # Prepare batches of data
-        nbatch = int(nEvents/batch_size)
-        for ibatch in range(nbatch):
-          # Sample the events in to batches 
-          X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.25, shuffle=True)
-          batch_ind = np.random.randint(0,X_train.shape[0],batch_size)
-          X_train = X_train[batch_ind]
-          Y_train = Y_train[batch_ind]
-          if test_sample:
-            yield X_test, Y_test
-          else:
-            yield X_train, Y_train
+    X_12, Y_12 = get_events(RegA_12, RegC_12)
+    X_01, Y_01 = get_events(RegA_01, RegC_01)
+
+    X_12_train, X_12_test, Y_12_train, Y_12_test = train_test_split(X_12, Y_12, test_size=0.25, shuffle=True)
+    X_01_train, X_01_test, Y_01_train, Y_01_test = train_test_split(X_01, Y_01, test_size=0.25, shuffle=True)
+
+    while True:
+      # record time
+      start_time = time.time()
+      # Prepare batches of data
+      nbatch = int(nEvents/batch_size)
+      next_sample_source = 0
+      for ibatch in range(nbatch): 
+        if next_sample_source == 0:
+          X_train, X_test, Y_train, Y_test = X_01_train, X_01_test, Y_01_train, Y_01_test
+          next_sample_source = 1
+        else:
+          X_train, X_test, Y_train, Y_test = X_12_train, X_12_test, Y_12_train, Y_12_test
+          next_sample_source = 0
+        start = 0
+        if not test_sample:
+          X_train[start:start+batch_size]
+          Y_train[start:start+batch_size]
+          start = start+batch_size
+          yield X_train, Y_train
+        else:
+          yield X_test, Y_test
+      print("--- %s seconds ---" % (time.time() - start_time))
 
 
 def get_full_data(file_name: str) -> Tuple[np.array, np.array, np.array]:
@@ -192,7 +203,11 @@ def get_full_data(file_name: str) -> Tuple[np.array, np.array, np.array]:
     return ht, nQuarkJets, wgt
 
 if __name__ == '__main__':
-  X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v2/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, None, True))
+  # X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v2/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, None, True))
+  # print(f'X[0] = {X[0]}')
+  # print(f'y[0] = {y[0]}')
+  train_data_gen = get_data_ABCD('../../input_file/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5', 5 , 10000, train=True, test_sample=False)
+  X, y = next(train_data_gen)
   print(f'X[0] = {X[0]}')
   print(f'y[0] = {y[0]}')
   # X, y, wgt = get_full_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5')

@@ -121,6 +121,7 @@ def main(config = None):
         verbose=1,
         validation_data=val_data_gen,
         steps_per_epoch=nbatch,
+        validation_steps=nbatch,
     )
 
     # Get training history
