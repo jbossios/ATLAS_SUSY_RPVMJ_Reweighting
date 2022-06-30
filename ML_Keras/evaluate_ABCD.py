@@ -22,9 +22,13 @@ import gc
 
 # custom code
 try:
-    from make_model import simple_model, sqrtR_loss, mean_pred
+    from get_data import get_full_data_ABCD
+    from get_data import get_full_weights_ABCD
+    from make_model import simple_model_norm, sqrtR_loss, mean_pred
 except:
-    from ML_Keras.make_model import simple_model, sqrtR_loss, mean_pred
+    from ML_Keras.get_data import get_full_data_ABCD
+    from ML_Keras.get_data import get_full_weights_ABCD
+    from ML_Keras.make_model import simple_model_norm, sqrtR_loss, mean_pred
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -72,13 +76,21 @@ def main(config = None):
         sys.exit(1)
 
     # load samples for prediction
-    RegA_x, RegB_x, RegD_x, RegC_x = get_data_ABCD(file_name=conf["file"], nepochs=conf["nepochs"],batch_size=conf["batch_size"], seed=seed, train=False, test_sample=False)
-
+    #RegA_x, RegB_x, RegC_x, RegD_x = get_data_ABCD(file_name=conf["file"], nepochs=1, batch_size=30000, seed=None, train=False, test_sample=None)
+    RegA_x, RegB_x, RegC_x, RegD_x = get_full_data_ABCD(file_name=conf["file"])
+    RegA_weights, RegB_weights, RegC_weights, RegD_weights = get_full_weights_ABCD(file_name=conf["file"])
+    RegA_ht = RegA_x[:,0]
+    RegC_ht = RegC_x[:,0]
+    RegB_ht = RegB_x[:,0]
+    RegD_ht = RegD_x[:,0]
+    # cuts used
+    cut_minAvgMass = 750
+    cut_QGTaggerBDT = 0.14
+    cut_nQuarkJets = 2
     # load model
-    model = simple_model(input_dim=RegA_x.shape[1])
+    model = simple_model_norm(input_dim=RegA_x.shape[1])
     model.compile(loss=sqrtR_loss,metrics=[mean_pred])
     model.summary()
-    
     # if checkpoint directory provided use the latest
     if os.path.isdir(ops.model_weights):
         latest = tf.train.latest_checkpoint(ops.model_weights)

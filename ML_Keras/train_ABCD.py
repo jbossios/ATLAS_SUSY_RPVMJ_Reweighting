@@ -22,10 +22,10 @@ import gc
 # custom imports
 try:
     from get_data import get_data_ABCD
-    from make_model import simple_model, sqrtR_loss, mean_pred
+    from make_model import simple_model, simple_model_norm, sqrtR_loss, mean_pred
 except:
     from ML_Keras.get_data import get_data_ABCD
-    from ML_Keras.make_model import simple_model, sqrtR_loss, mean_pred
+    from ML_Keras.make_model import simple_model, simple_model_norm, sqrtR_loss, mean_pred
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -79,8 +79,8 @@ def main(config = None):
     if "seed" in conf and conf["seed"] is not None:
         seed = conf["seed"]
 
-    train_data_gen = get_data_ABCD(file_name=conf["file"], nepochs=conf["nepochs"],batch_size=conf["batch_size"], seed=seed, train=True, test_sample=False)
-    val_data_gen = get_data_ABCD(file_name=conf["file"], nepochs=conf["nepochs"],batch_size=conf["batch_size"], seed=seed+1 if seed is not None else None, train=True, test_sample=True)
+    train_data_gen = get_data_ABCD(file_name=conf["file"], nepochs=conf["nepochs"],batch_size=conf["batch_size"], seed=seed, test_sample=None)
+    val_data_gen = get_data_ABCD(file_name=conf["file"], nepochs=conf["nepochs"],batch_size=conf["batch_size"], seed=seed+1 if seed is not None else None, test_sample="012")
 
     # set seeds to get reproducible results (only if requested)
     if seed is not None:
@@ -92,7 +92,7 @@ def main(config = None):
             tf.keras.utils.set_random_seed(seed)
 
     # make model
-    model = simple_model(input_dim=conf["input_dim"])
+    model = simple_model_norm(input_dim=conf["input_dim"])
     model.compile(optimizer=tf.optimizers.Adam(learning_rate=conf["learning_rate"]),loss=sqrtR_loss,metrics=[mean_pred])
     model.summary()
 

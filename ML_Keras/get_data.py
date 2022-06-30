@@ -82,7 +82,7 @@ def get_data(file_name: str, nepochs: int, batch_size: int = 2048, seed: int = N
           plt.savefig('compare_sampled_data.pdf')  # TODO: improve output name
         yield np.array(ht_sample_shaped), np.array(flags_sample_shaped)
 
-def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: int = None, train: bool = True, test_sample: bool = False):
+def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: int = None, test_sample: str = None):
   """
   Sample nepochs batches of size batch_size
   On each batch, data is sampled from pdfs constructed using weighted distributions
@@ -122,29 +122,16 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
     # Evaluate B->D.
     RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)
     RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-    
+    RegB_x = x[RegB]
+    RegD_x = x[RegD]
+    # get events for regions.
     def get_events(RegA, RegC):
-      # get events per region
       RegA_x = x[RegA]
       RegA_weights = normweight[RegA]
       RegA_y = np.zeros(RegA_weights.shape)
-
       RegC_x = x[RegC]
       RegC_weights = normweight[RegC]
       RegC_y = np.ones(RegC_weights.shape)
-
-      RegB_x = x[RegB]
-      RegD_x = x[RegD]
-
-      # return the full sample if not train       
-      if not train:
-        print('Full sample for evaluation:')
-        # normalize for prediction
-        RegA_x = (RegA_x-np.mean(RegA_x,0))/np.std(RegA_x,0)
-        RegC_x = (RegC_x-np.mean(RegC_x,0))/np.std(RegC_x,0)
-        RegB_x = (RegB_x-np.mean(RegB_x,0))/np.std(RegB_x,0)
-        RegD_x = (RegD_x-np.mean(RegD_x,0))/np.std(RegD_x,0)
-        return RegA_x, RegB_x, RegD_x, RegC_x
       # combine with same statistics
       nEventsA = -1 #min(RegA_y.shape[0],RegC_y.shape[0])
       nEventsC = -1 #2*nEvents
@@ -153,39 +140,92 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
       W = np.concatenate([RegA_weights[:nEventsA],RegC_weights[:nEventsC]])
       Y = np.stack([Y,W],axis=-1)
       # standardize
-      X = (X - np.mean(X,0))/np.std(X,0)
+      #X = (X - np.mean(X,0))/np.std(X,0)
       #print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
       return X, Y
-
+    # Get events
     X_12, Y_12 = get_events(RegA_12, RegC_12)
     X_01, Y_01 = get_events(RegA_01, RegC_01)
-
     X_12_train, X_12_test, Y_12_train, Y_12_test = train_test_split(X_12, Y_12, test_size=0.25, shuffle=True)
     X_01_train, X_01_test, Y_01_train, Y_01_test = train_test_split(X_01, Y_01, test_size=0.25, shuffle=True)
-
+    # Load data
     while True:
       # record time
       start_time = time.time()
       # Prepare batches of data
       nbatch = int(nEvents/batch_size)
       next_sample_source = 0
+      start = 0
       for ibatch in range(nbatch): 
-        if next_sample_source == 0:
-          X_train, X_test, Y_train, Y_test = X_01_train, X_01_test, Y_01_train, Y_01_test
-          next_sample_source = 1
-        else:
-          X_train, X_test, Y_train, Y_test = X_12_train, X_12_test, Y_12_train, Y_12_test
-          next_sample_source = 0
-        start = 0
-        if not test_sample:
+        # Generate training samples
+        if test_sample==None:
+          # check sample source
+          if next_sample_source == 0:
+            X_train, Y_train = X_01_train, Y_01_train
+            next_sample_source = 1
+          else:
+            X_train, Y_train = X_12_train, Y_12_train
+            next_sample_source = 0
           X_train[start:start+batch_size]
           Y_train[start:start+batch_size]
           start = start+batch_size
           yield X_train, Y_train
+        # Generate validation samples
+        elif test_sample == "01": 
+          yield X_01_test, Y_01_test
+        elif test_sample == "12": 
+          yield X_12_test, Y_12_test
+        elif test_sample == "012":  
+          yield np.concatenate((X_01_test, X_12_test),axis=0), np.concatenate((Y_01_test, Y_12_test),axis=0)
+        elif test_sample == "BD": 
+          yield get_events(RegB, RegD)
         else:
-          yield X_test, Y_test
+          print("Invalid test_sample: ", test_sample, ". Return test_sample = 012.")
+      # Record time for all batches.
       print("--- %s seconds ---" % (time.time() - start_time))
 
+def get_full_data_ABCD(file_name: str) -> Tuple[np.array, np.array, np.array, np.array]:
+  # cuts used
+  cut_minAvgMass = 750
+  cut_QGTaggerBDT = 0.14
+  cut_nQuarkJets = 2
+  with h5py.File(file_name, 'r') as f:
+    # pick up variables from file
+    x = np.stack([
+                np.array(f['EventVars']['HT']),
+                np.array(f['EventVars']['deta']),
+                np.array(f['EventVars']['djmass']),
+                np.array(f['EventVars']['minAvgMass']),
+                np.array(f['source']['pt'][:,0])
+           ],-1)
+    minAvgMass = np.array(f['EventVars']['minAvgMass'])
+    nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
+    RegA_x = x[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)]
+    RegC_x = x[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
+    RegB_x = x[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)]
+    RegD_x = x[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
+    # normalize for prediction
+    # RegA_x = (RegA_x-np.mean(RegA_x,0))/np.std(RegA_x,0)
+    # RegC_x = (RegC_x-np.mean(RegC_x,0))/np.std(RegC_x,0)
+    # RegB_x = (RegB_x-np.mean(RegB_x,0))/np.std(RegB_x,0)
+    # RegD_x = (RegD_x-np.mean(RegD_x,0))/np.std(RegD_x,0)
+    return RegA_x, RegB_x, RegC_x, RegD_x
+
+def get_full_weights_ABCD(file_name: str) -> Tuple[np.array, np.array, np.array, np.array]:
+  # cuts used
+  cut_minAvgMass = 750
+  cut_QGTaggerBDT = 0.14
+  cut_nQuarkJets = 2
+  with h5py.File(file_name, 'r') as f:
+    # pick up variables from file
+    minAvgMass = np.array(f['EventVars']['minAvgMass'])
+    nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
+    normweight = np.array(f['normweight']['normweight'])
+    RegA_weights = normweight[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)]
+    RegC_weights = normweight[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
+    RegB_weights = normweight[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)]
+    RegD_weights = normweight[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
+    return RegA_weights, RegB_weights, RegC_weights, RegD_weights
 
 def get_full_data(file_name: str) -> Tuple[np.array, np.array, np.array]:
   """
@@ -206,10 +246,27 @@ if __name__ == '__main__':
   # X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v2/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, None, True))
   # print(f'X[0] = {X[0]}')
   # print(f'y[0] = {y[0]}')
-  train_data_gen = get_data_ABCD('../../input_file/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5', 5 , 10000, train=True, test_sample=False)
-  X, y = next(train_data_gen)
-  print(f'X[0] = {X[0]}')
-  print(f'y[0] = {y[0]}')
+  train_data_gen = get_data_ABCD('../../input_file/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5', 3 , 10000, train=True, test_sample=None)
+  test_data_gen = get_data_ABCD('../../input_file/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5', 3 , 10000, train=True, test_sample='012')
+
+  i = 0
+  for ibatch in train_data_gen:
+    print("train_data_gen ", i)
+    x, y = ibatch
+    print('x: ', x.shape)
+    print('y: ', y.shape)
+    i += 1
+    if i > 5:
+      break
+  j = 0
+  for jbatch in test_data_gen:
+    print("test_data_gen ", j)
+    x, y = jbatch
+    print('x: ', x.shape)
+    print('y: ', y.shape)
+    j += 1
+    if j > 5:
+      break
   # X, y, wgt = get_full_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5')
   # print(f'X[0] = {X[0]}')
   # print(f'y[0] = {y[0]}')
