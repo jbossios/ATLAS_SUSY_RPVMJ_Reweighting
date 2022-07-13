@@ -58,79 +58,65 @@ def main(config = None):
         except:  # deprecated in newer tf versions
             tf.keras.utils.set_random_seed(ops.seed)
 
-    # cuts used
-    cut_minAvgMass = 750
-    # grep ScoreCut /cvmfs/atlas.cern.ch/repo/sw/software/21.2/AnalysisBase/21.2.214/InstallArea/x86_64-centos7-gcc8-opt/data/BoostedJetTaggers/JetQGTaggerBDT/JetQGTaggerBDT*
-    # 50%: (x<200)*(-0.000714*x-0.0121) + (x>=200)*-0.155, 80%: 0.05, 90%: 0.14
-    cut_QGTaggerBDT = 0.14
-    cut_nQuarkJets = 2
-    
+    #%%%%%%%%%%% Data loading %%%%%%%%%%%#
     # load this once
     with h5py.File(ops.inFile,"r") as f:
         # pick up variables from file
         x = np.stack([
-                np.array(f['EventVars']['HT']),
-                np.array(f['EventVars']['deta']),
-                np.array(f['EventVars']['djmass']),
-                np.array(f['EventVars']['minAvgMass']),
-                np.array(f['source']['pt'][:,0])
+                np.array(f['EventVars/HT']),
+                np.array(f['EventVars/deta']),
+                np.array(f['EventVars/djmass']),
+                np.array(f['EventVars/minAvgMass_jetdiff10_btagdiff10']),
+                np.array(f['source/pt'][:,0])
            ],-1)
-        minAvgMass = np.array(f['EventVars']['minAvgMass'])
-        nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
-        normweight = np.array(f['normweight']['normweight'])
-        # normweight = np.sqrt(normweight)
-        print(f"Number of events: {minAvgMass.shape[0]}")
+        dEta12 = np.array(f['EventVars/deta'])
+        n_jets = np.array(f['EventVars/nJet(pt>=20GeV)'])
+        normweight = np.array(f['EventVars/normweight'])
 
-    # Create cuts to Reweight A -> C
-    RegA = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-    RegC = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-    RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-    RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-    print(f"Number of events in A and C: {RegA.sum()}, {RegC.sum()}")
-    print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
-    del minAvgMass, nQuarkJets
-    gc.collect()
+        print(f"Number of events: {x.shape[0]}")
+
+    # control and validation regions
+    cut_deta12 = 1.5
+    CR_njets, VR_njets, SR_njets = 3, 4, 7
+    CR_high = np.logical_and(dEta12 >= cut_deta12, n_jets == CR_njets)
+    CR_low  = np.logical_and(dEta12 < cut_deta12,  n_jets == CR_njets)
+    VR_high = np.logical_and(dEta12 >= cut_deta12, n_jets == VR_njets)
+    VR_low  = np.logical_and(dEta12 < cut_deta12,  n_jets == VR_njets)
+    SR_high = np.logical_and(dEta12 >= cut_deta12, n_jets >= SR_njets)
+    SR_low  = np.logical_and(dEta12 < cut_deta12,  n_jets >= SR_njets)
 
     # get events per region
-    RegA_x = x[RegA]
-    RegA_weights = normweight[RegA]
-    RegA_y = np.zeros(RegA_weights.shape)
-    RegC_x = x[RegC]
-    RegC_weights = normweight[RegC]
-    RegC_y = np.ones(RegC_weights.shape)
-    # just for evaluation get region B and D
-    RegB_x = x[RegB]
-    RegD_x = x[RegD]
-    del x, normweight
+    CR_high_x, CR_high_w = x[CR_high], normweight[CR_high]
+    CR_low_x,   CR_low_w = x[CR_low],  normweight[CR_low]
+    VR_high_x, VR_high_w = x[VR_high], normweight[VR_high]
+    VR_low_x,   VR_low_w = x[VR_low],  normweight[VR_low]
+    SR_high_x, SR_high_w = x[SR_high], normweight[SR_high]
+    SR_low_x,   SR_low_w = x[SR_low],  normweight[SR_low]
+
+    print(f"Events in CR_high {CR_high_x.shape}, CR_low {CR_high_x.shape}")
+    print(f"Events in VR_high {VR_high_x.shape}, VR_low {VR_high_x.shape}")
+    print(f"Events in SR_high {SR_high_x.shape}, SR_low {SR_high_x.shape}")
+
+    # remove unused vars and cleanup
+    del x, dEta12, n_jets, normweight
     gc.collect()
 
-    # save number of events
-    # RegA_nevents = RegA_x.shape[0]
-    # RegC_nevents = RegC_x.shape[0]
+    # define training labels to reweight CR_high -> CR_low, i.e learning CR_low/CR_high
+    CR_high_y = np.zeros(CR_high_x.shape[0])
+    CR_low_y  = np.ones(CR_low_x.shape[0])
 
-    # concatenate
-    # X = np.concatenate([RegA_x,RegC_x])
-    # Y = np.concatenate([RegA_y,RegC_y])
-    # W = np.concatenate([RegA_weights,RegC_weights])
-    # Y = np.stack([Y,W],axis=-1)
-    # del RegA_x, RegA_weights, RegA_y, RegC_x, RegC_weights, RegC_y
-    # gc.collect()
-
-    # standardize
-    # X = (X - np.mean(X,0))/np.std(X,0)
-    # print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
-
-    # prepare confs
+    #%%%%%%%%%%% Prepare Configurations %%%%%%%%%%%#
     confs = []
     for iB in range(ops.num_bootstraps):
-        # confs.append({"iB":iB,"X":X,"Y":Y,"bootstrap_path":bootstrap_path,"RegA_nevents":RegA_nevents, "RegC_nevents":RegC_nevents})
         confs.append({
             "iB":iB,
             "bootstrap_path":bootstrap_path,
-            "RegA_x":RegA_x, "RegA_y":RegA_y, "RegA_weights":RegA_weights,
-            "RegB_x":RegB_x, 
-            "RegC_x":RegC_x, "RegC_y":RegC_y, "RegC_weights":RegC_weights,
-            "RegD_x":RegD_x
+            "CR_high_x" : CR_high_x, "CR_high_w" : CR_high_w, "CR_high_y" : CR_high_y,
+            "CR_low_x"  : CR_low_x,  "CR_low_w"  : CR_low_w,  "CR_low_y"  : CR_low_y,
+            "VR_high_x" : VR_high_x, "VR_high_w" : VR_high_w,
+            "VR_low_x"  : VR_low_x,  "VR_low_w"  : VR_low_w,
+            "SR_high_x" : SR_high_x, "SR_high_w" : SR_high_w,
+            "SR_low_x"  : SR_low_x,  "SR_low_w"  : SR_low_w,
         })
 
     # launch jobs
@@ -154,15 +140,23 @@ def train(conf):
     # make log file
     logfile = open(os.path.join(checkpoint_dir,"log.txt"),"w")
 
+    # check out file name is ok
+    outFileName = os.path.join(checkpoint_dir,"predictions.h5")
+    if os.path.isfile(outFileName) and not ops.doOverwrite:
+        logfile.write(f"Skipping because outfile name already exists: {outFileName}")
+        return
+
     # concatenate
-    X = np.concatenate([conf["RegA_x"],conf["RegC_x"]])
-    Y = np.concatenate([conf["RegA_y"],conf["RegC_y"]])
-    W = np.concatenate([conf["RegA_weights"],conf["RegC_weights"]])
+    X = np.concatenate([conf["CR_high_x"],conf["CR_low_x"]])
+    Y = np.concatenate([conf["CR_high_y"],conf["CR_low_y"]])
+    W = np.concatenate([conf["CR_high_w"],conf["CR_low_w"]])
     Y = np.stack([Y,W],axis=-1)
 
     # standardize
-    X = (X - np.mean(X,0))/np.std(X,0)
-    logfile.write(f"X mean, std: {np.mean(X)}, {np.std(X)}")
+    X_mean =  np.mean(X,0)
+    X_std =  np.std(X,0)
+    logfile.write(f"X mean, std: {X_mean}, {X_std}")
+    X = (X - X_mean)/X_std
 
     # split data
     X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(X, Y, np.arange(X.shape[0]), test_size=0.75, shuffle=True)
@@ -200,22 +194,20 @@ def train(conf):
     plot_loss(history, checkpoint_dir)
 
     # predict in each region
-    logfile.write(f"Prediction Region A with {conf['RegA_x'].shape[0]} events" + "\n")
-    RegA_p = model.predict((conf["RegA_x"]-np.mean(conf["RegA_x"]))/np.std(conf["RegA_x"]),batch_size=10000).flatten()
-    logfile.write(f"Prediction Region B with {conf['RegB_x'].shape[0]} events" + "\n")
-    RegB_p = model.predict((conf["RegB_x"]-np.mean(conf["RegB_x"]))/np.std(conf["RegB_x"]),batch_size=10000).flatten()
-    logfile.write(f"Prediction Region C with {conf['RegC_x'].shape[0]} events" + "\n")
-    RegC_p = model.predict((conf["RegC_x"]-np.mean(conf["RegC_x"]))/np.std(conf["RegC_x"]),batch_size=10000).flatten()
-    logfile.write(f"Prediction Region D with {conf['RegD_x'].shape[0]} events" + "\n")
-    RegD_p = model.predict((conf["RegD_x"]-np.mean(conf["RegD_x"]))/np.std(conf["RegD_x"]),batch_size=10000).flatten()
-    np.savez(
-        os.path.join(checkpoint_dir,"predictions.npz"),
-        **{
-        "idx_train": idx_train, "idx_test": idx_test,
-        "RegA_p": RegA_p,
-        "RegB_p": RegB_p,
-        "RegC_p": RegC_p,
-        "RegD_p": RegD_p})
+    # logfile.write(f"Prediction Region A with {conf['RegA_x'].shape[0]} events" + "\n")
+    CR_high_p = model.predict( (conf["CR_high_x"]-X_mean)/X_std, batch_size=10000).flatten()
+    VR_high_p = model.predict( (conf["VR_high_x"]-X_mean)/X_std, batch_size=10000).flatten()
+    SR_high_p = model.predict( (conf["SR_high_x"]-X_mean)/X_std, batch_size=10000).flatten()
+    
+    logfile.write(f"Saving to {outFileName}")
+    # np.savez(outFileName, **outData)
+    
+    with h5py.File(outFileName, 'w') as hf:
+        hf.create_dataset("idx_train", data = idx_train)
+        hf.create_dataset("idx_test", data = idx_test)
+        hf.create_dataset("CR_high_p", data = CR_high_p)
+        hf.create_dataset("VR_high_p", data = VR_high_p)
+        hf.create_dataset("SR_high_p", data = SR_high_p)
 
     # close
     logfile.write("Done closing log file")
@@ -225,13 +217,14 @@ def options():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--inFile", help="Input file.", default=None)
     parser.add_argument("-o", "--outDir", help="Output directory for plots", default="./")
-    parser.add_argument("-nb", "--num_bootstraps", help="Number of trainings to perform for bootstrap.", default=2, type=int)
+    parser.add_argument("-nb", "--num_bootstraps", help="Number of trainings to perform for bootstrap.", default=1, type=int)
     parser.add_argument("-bp", "--bootstrap_path", help="Path where bootstrap saved to", default=os.path.join('./checkpoints', f'bootstrap_{datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S")}'))
     parser.add_argument("-e", "--nepochs", help="Number of epochs.", default=1, type=int)
     parser.add_argument("-b", "--batch_size", help="Training batch size.", default=2048, type=int)
     parser.add_argument("-lr", "--learning_rate", help="Learning rate", default=1e-3, type=float)
     parser.add_argument("-s", "--seed", help="Seed for TensorFlow and NumPy", default=None, type=int)
     parser.add_argument("-j",  "--ncpu", help="Number of cores to use for multiprocessing. If not provided multiprocessing not done.", default=1, type=int)
+    parser.add_argument("--doOverwrite", action="store_true", help="Overwrite existing output files with overlapping names.")
     return parser.parse_args()
 
 if __name__ == "__main__":
