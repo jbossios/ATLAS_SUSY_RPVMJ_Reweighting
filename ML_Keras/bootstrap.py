@@ -17,8 +17,12 @@ import os
 import multiprocessing as mp
 
 # custom
-from make_model import simple_model, sqrtR_loss, mean_pred
+from make_model import simple_model_norm, sqrtR_loss, mean_pred
 from plotting_functions import plot_loss
+
+# Need the following to run on LXPLUS
+import matplotlib
+matplotlib.use('Agg')
 
 # Tensorflow GPU settings
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -161,8 +165,8 @@ def train(conf):
     Y = np.stack([Y,W],axis=-1)
 
     # standardize
-    X = (X - np.mean(X,0))/np.std(X,0)
-    logfile.write(f"X mean, std: {np.mean(X)}, {np.std(X)}")
+    #X = (X - np.mean(X,0))/np.std(X,0)
+    #logfile.write(f"X mean, std: {np.mean(X)}, {np.std(X)}")
 
     # split data
     X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(X, Y, np.arange(X.shape[0]), test_size=0.75, shuffle=True)
@@ -183,7 +187,7 @@ def train(conf):
     callbacks.append(tf.keras.callbacks.CSVLogger(os.path.join(checkpoint_dir,"fit.txt"), separator=",", append=False))
 
     # compile
-    model = simple_model(input_dim=X_train.shape[1])
+    model = simple_model_norm(input_dim=X_train.shape[1])
     model.compile(optimizer=tf.optimizers.Adam(learning_rate=ops.learning_rate), loss=sqrtR_loss, metrics=[mean_pred])
 
     # fit
@@ -201,13 +205,13 @@ def train(conf):
 
     # predict in each region
     logfile.write(f"Prediction Region A with {conf['RegA_x'].shape[0]} events" + "\n")
-    RegA_p = model.predict((conf["RegA_x"]-np.mean(conf["RegA_x"]))/np.std(conf["RegA_x"]),batch_size=10000).flatten()
+    RegA_p = model.predict(conf["RegA_x"],batch_size=10000).flatten()
     logfile.write(f"Prediction Region B with {conf['RegB_x'].shape[0]} events" + "\n")
-    RegB_p = model.predict((conf["RegB_x"]-np.mean(conf["RegB_x"]))/np.std(conf["RegB_x"]),batch_size=10000).flatten()
+    RegB_p = model.predict(conf["RegB_x"],batch_size=10000).flatten()
     logfile.write(f"Prediction Region C with {conf['RegC_x'].shape[0]} events" + "\n")
-    RegC_p = model.predict((conf["RegC_x"]-np.mean(conf["RegC_x"]))/np.std(conf["RegC_x"]),batch_size=10000).flatten()
+    RegC_p = model.predict(conf["RegC_x"],batch_size=10000).flatten()
     logfile.write(f"Prediction Region D with {conf['RegD_x'].shape[0]} events" + "\n")
-    RegD_p = model.predict((conf["RegD_x"]-np.mean(conf["RegD_x"]))/np.std(conf["RegD_x"]),batch_size=10000).flatten()
+    RegD_p = model.predict(conf["RegD_x"],batch_size=10000).flatten()
     np.savez(
         os.path.join(checkpoint_dir,"predictions.npz"),
         **{

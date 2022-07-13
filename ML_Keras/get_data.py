@@ -125,13 +125,21 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
     RegB_x = x[RegB]
     RegD_x = x[RegD]
     # get events for regions.
-    def get_events(RegA, RegC):
-      RegA_x = x[RegA]
+    def get_events(RegA, RegC, RegCat):
       RegA_weights = normweight[RegA]
       RegA_y = np.zeros(RegA_weights.shape)
-      RegC_x = x[RegC]
       RegC_weights = normweight[RegC]
       RegC_y = np.ones(RegC_weights.shape)
+      if RegCat == 1:
+        RegA_x = np.concatenate((x[RegA],np.ones([len(RegA_y),1], dtype=int)), axis =1)
+        RegC_x = np.concatenate((x[RegC],np.ones([len(RegC_y),1], dtype=int)), axis =1)
+      elif RegCat == 0:
+        RegA_x = np.concatenate((x[RegA],np.zeros([len(RegA_y),1], dtype=int)), axis =1)
+        RegC_x = np.concatenate((x[RegC],np.zeros([len(RegC_y),1], dtype=int)), axis =1)
+      elif RegCat == 0:
+        print('Invalid RegCat.')
+        RegA_x = x[RegA]
+        RegC_x = x[RegC]
       # combine with same statistics
       nEventsA = -1 #min(RegA_y.shape[0],RegC_y.shape[0])
       nEventsC = -1 #2*nEvents
@@ -144,8 +152,8 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
       #print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
       return X, Y
     # Get events
-    X_12, Y_12 = get_events(RegA_12, RegC_12)
-    X_01, Y_01 = get_events(RegA_01, RegC_01)
+    X_12, Y_12 = get_events(RegA_12, RegC_12, 1)
+    X_01, Y_01 = get_events(RegA_01, RegC_01, 0)
     X_12_train, X_12_test, Y_12_train, Y_12_test = train_test_split(X_12, Y_12, test_size=0.25, shuffle=True)
     X_01_train, X_01_test, Y_01_train, Y_01_test = train_test_split(X_01, Y_01, test_size=0.25, shuffle=True)
     # Load data
@@ -153,7 +161,7 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
       # record time
       start_time = time.time()
       # Prepare batches of data
-      nbatch = int(nEvents/batch_size)
+      nbatch = int(nEvents/batch_size)*2
       next_sample_source = 0
       start = 0
       for ibatch in range(nbatch): 
@@ -161,14 +169,14 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
         if test_sample==None:
           # check sample source
           if next_sample_source == 0:
-            X_train, Y_train = X_01_train, Y_01_train
+            X_train = X_01_train[start:start+batch_size]
+            Y_train = Y_01_train[start:start+batch_size]
             next_sample_source = 1
           else:
-            X_train, Y_train = X_12_train, Y_12_train
+            X_train = X_12_train[start:start+batch_size]
+            Y_train = Y_12_train[start:start+batch_size]
+            start = start+batch_size
             next_sample_source = 0
-          X_train[start:start+batch_size]
-          Y_train[start:start+batch_size]
-          start = start+batch_size
           yield X_train, Y_train
         # Generate validation samples
         elif test_sample == "01": 
@@ -191,16 +199,18 @@ def get_full_data_ABCD(file_name: str) -> Tuple[np.array, np.array, np.array, np
   cut_nQuarkJets = 2
   with h5py.File(file_name, 'r') as f:
     # pick up variables from file
+    minAvgMass = np.array(f['EventVars']['minAvgMass'])
+    nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
+    nEvents = minAvgMass.shape[0]
     x = np.stack([
                 np.array(f['EventVars']['HT']),
                 np.array(f['EventVars']['deta']),
                 np.array(f['EventVars']['djmass']),
                 np.array(f['EventVars']['minAvgMass']),
-                np.array(f['source']['pt'][:,0])
+                np.array(f['source']['pt'][:,0]),
+                np.ones(nEvents, dtype=int)
            ],-1)
-    minAvgMass = np.array(f['EventVars']['minAvgMass'])
-    nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
-    RegA_x = x[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)]
+    RegA_x = x[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets == 1)]
     RegC_x = x[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
     RegB_x = x[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)]
     RegD_x = x[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
@@ -221,7 +231,7 @@ def get_full_weights_ABCD(file_name: str) -> Tuple[np.array, np.array, np.array,
     minAvgMass = np.array(f['EventVars']['minAvgMass'])
     nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
     normweight = np.array(f['normweight']['normweight'])
-    RegA_weights = normweight[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)]
+    RegA_weights = normweight[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets == 1)]
     RegC_weights = normweight[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
     RegB_weights = normweight[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)]
     RegD_weights = normweight[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
@@ -246,8 +256,8 @@ if __name__ == '__main__':
   # X, y = next(get_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v2/mc16a_dijets_JZAll_for_reweighting.h5', 1000, 100000, None, True))
   # print(f'X[0] = {X[0]}')
   # print(f'y[0] = {y[0]}')
-  train_data_gen = get_data_ABCD('../../input_file/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5', 3 , 10000, train=True, test_sample=None)
-  test_data_gen = get_data_ABCD('../../input_file/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5', 3 , 10000, train=True, test_sample='012')
+  train_data_gen = get_data_ABCD('../../input_file/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5', 3 , 10000, test_sample=None)
+  test_data_gen = get_data_ABCD('../../input_file/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5', 3 , 10000, test_sample='012')
 
   i = 0
   for ibatch in train_data_gen:
@@ -267,6 +277,13 @@ if __name__ == '__main__':
     j += 1
     if j > 5:
       break
+
+  RegA_x, RegB_x, RegC_x, RegD_x = get_full_data_ABCD('../../input_file/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5')
+  print('A: ', RegA_x.shape)
+  print('B: ', RegB_x.shape)
+  print('C: ', RegC_x.shape)
+  print('D: ', RegD_x.shape)
+
   # X, y, wgt = get_full_data('/eos/atlas/atlascerngroupdisk/phys-susy/RPV_mutlijets_ANA-SUSY-2019-24/reweighting/Jona/H5_files/v1/mc16a_dijets_JZAll_for_reweighting.h5')
   # print(f'X[0] = {X[0]}')
   # print(f'y[0] = {y[0]}')

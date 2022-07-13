@@ -80,7 +80,7 @@ def main(config = None):
         seed = conf["seed"]
 
     train_data_gen = get_data_ABCD(file_name=conf["file"], nepochs=conf["nepochs"],batch_size=conf["batch_size"], seed=seed, test_sample=None)
-    val_data_gen = get_data_ABCD(file_name=conf["file"], nepochs=conf["nepochs"],batch_size=conf["batch_size"], seed=seed+1 if seed is not None else None, test_sample="012")
+    val_data_gen = get_data_ABCD(file_name=conf["file"], nepochs=conf["nepochs"],batch_size=conf["batch_size"], seed=seed+1 if seed is not None else None, test_sample="12")
 
     # set seeds to get reproducible results (only if requested)
     if seed is not None:
