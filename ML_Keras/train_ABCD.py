@@ -110,8 +110,8 @@ def main(config = None):
     callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
 
     # replace this calculation later:
-    nEvents = 15598728 
-    nbatch = int(nEvents/conf["batch_size"])
+    nEvents = 2203584
+    nbatch = int(nEvents/conf["batch_size"])*2
 
     # train
     history = model.fit(

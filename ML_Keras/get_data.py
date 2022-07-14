@@ -106,7 +106,6 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
     nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
     normweight = np.array(f['normweight']['normweight'])
     # normweight = np.sqrt(normweight)
-    nEvents = minAvgMass.shape[0]
     #print(f"Number of events: {nEvents}")
     """  
     For each batch, learn 0->1 or 1->2.
@@ -156,6 +155,8 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
     X_01, Y_01 = get_events(RegA_01, RegC_01, 0)
     X_12_train, X_12_test, Y_12_train, Y_12_test = train_test_split(X_12, Y_12, test_size=0.25, shuffle=True)
     X_01_train, X_01_test, Y_01_train, Y_01_test = train_test_split(X_01, Y_01, test_size=0.25, shuffle=True)
+    nEvents = np.min([X_12_train.shape[0], X_01_train.shape[0]])
+    print('Total number of events for training: ', nEvents)
     # Load data
     while True:
       # record time
