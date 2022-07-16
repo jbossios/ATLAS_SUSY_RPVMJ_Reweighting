@@ -136,25 +136,21 @@ def evaluate(config):
                     kinem[key][~jet_selection[:,:,-1]] = 0
 
                 # pick up event variables
-                for key in ["minAvgMass_jetdiff10_btagdiff10"]:
-                    kinem[key] = np.array(tree[key]).flatten()
+                # for key in ["minAvgMass_jetdiff10_btagdiff10"]:
+                #     kinem[key] = np.array(tree[key]).flatten()
 
                 # compute variables
                 kinem["jet_px"] = kinem["jet_pt"] * np.cos(kinem["jet_phi"])
                 kinem["jet_py"] = kinem["jet_pt"] * np.sin(kinem["jet_phi"])
                 kinem["jet_pz"] = kinem["jet_pt"] * np.sinh(kinem["jet_eta"])
-                kinem["HT"] = kinem["jet_pt"].sum(1)
-                kinem["deta"] = kinem["jet_eta"][:,0] - kinem["jet_eta"][:,1] # deta between leading jets
-                kinem["djmass"] = np.sqrt(kinem["jet_e"][:,:2].sum(1)**2 - kinem["jet_px"][:,:2].sum(1)**2 - kinem["jet_py"][:,:2].sum(1)**2 - kinem["jet_pz"][:,:2].sum(1)**2) # mass of two leading jets added together
-                
+                HT = kinem["jet_pt"].sum(1)
+                dEta12 = kinem["jet_eta"][:,0] - kinem["jet_eta"][:,1] # deta between leading jets
+                djmass = np.sqrt(kinem["jet_e"][:,:2].sum(1)**2 - kinem["jet_px"][:,:2].sum(1)**2 - kinem["jet_py"][:,:2].sum(1)**2 - kinem["jet_pz"][:,:2].sum(1)**2) # mass of two leading jets added together
+                n_jets = (kinem["jet_pt"] > 0).sum()
+                minAvg = np.array(tree["minAvgMass_jetdiff10_btagdiff10"]).flatten()
+
                 # prepare input
-                X = np.stack([
-                    kinem["HT"],
-                    kinem["deta"],
-                    kinem["djmass"],
-                    kinem["minAvgMass_jetdiff10_btagdiff10"],
-                    kinem["jet_pt"][:,0]
-                ], -1)
+                X = np.stack([HT,minAvg,dEta12,n_jets, djmass],-1)
 
                 # cleanup
                 del kinem
