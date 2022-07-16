@@ -24,6 +24,7 @@ import tensorflow as tf
 physical_devices = tf.config.list_physical_devices('GPU')
 if physical_devices:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # CPU mode evaluation
 
 # global variables
 import logging
@@ -46,9 +47,12 @@ def main():
     treeNames = ["trees_SRRPV_"]
     
     # get list of model weights
-    model_weights = handleInput(ops.model_weights)
+    if "training" in ops.model_weights:
+        model_weights = [ops.model_weights]
+    else:
+        model_weights = handleInput(ops.model_weights)
     model_weights = [i for i in model_weights if "training" in i]
-
+    print(model_weights)
     # make output dir
     if not os.path.isdir(ops.outDir):
         os.makedirs(ops.outDir)
@@ -183,6 +187,7 @@ def evaluate(config):
         # loop over model weights
         predictions = []
         for model_weights in config["model_weights"]:
+            print(model_weights)
             # if checkpoint directory provided use the latest
             if os.path.isdir(model_weights):
                 latest = tf.train.latest_checkpoint(model_weights)
@@ -196,7 +201,7 @@ def evaluate(config):
                 model.load_weights(model_weights).expect_partial()
 
             # make prediction
-            pred = model.predict(X, batch_size=10000).flatten()
+            pred = model.predict(X, batch_size=40000).flatten()
             predictions.append(pred)
 
         # stack

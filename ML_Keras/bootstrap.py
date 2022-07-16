@@ -61,23 +61,29 @@ def main(config = None):
     #%%%%%%%%%%% Data loading %%%%%%%%%%%#
     # load this once
     with h5py.File(ops.inFile,"r") as f:
-        # pick up variables from file
-        x = np.stack([
-                np.array(f['EventVars/HT']),
-                np.array(f['EventVars/deta']),
-                np.array(f['EventVars/djmass']),
-                np.array(f['EventVars/minAvgMass_jetdiff10_btagdiff10']),
-                np.array(f['source/pt'][:,0])
-           ],-1)
-        dEta12 = np.array(f['EventVars/deta'])
-        n_jets = np.array(f['EventVars/nJet(pt>=20GeV)'])
-        normweight = np.array(f['EventVars/normweight'])
-
+        # event selection
+        minAvg = np.array(f['EventVars/minAvgMass_jetdiff10_btagdiff10'])
+        cut_minAvg = 1000 # GeV
+        mask = (minAvg > cut_minAvg)
+        HT = np.array(f['EventVars/HT'])
+        cut_HT = 1100 # GeV
+        mask = np.logical_and(mask, HT > cut_HT)
+        
+        # load other variables
+        HT = HT[mask]
+        minAvg = minAvg[mask]
+        dEta12 = np.array(f['EventVars/deta12'][mask])
+        n_jets = np.array(f['EventVars/nJet'][mask])
+        djmass = np.array(f['EventVars/djmass'][mask])
+        normweight = np.array(f['EventVars/normweight'][mask])
+        
+        # concatenate
+        x = np.stack([HT,minAvg,dEta12,n_jets, djmass],-1)        
         print(f"Number of events: {x.shape[0]}")
 
     # control and validation regions
     cut_deta12 = 1.5
-    CR_njets, VR_njets, SR_njets = 3, 4, 7
+    CR_njets, VR_njets, SR_njets = 5, 6, 7
     CR_high = np.logical_and(dEta12 >= cut_deta12, n_jets == CR_njets)
     CR_low  = np.logical_and(dEta12 < cut_deta12,  n_jets == CR_njets)
     VR_high = np.logical_and(dEta12 >= cut_deta12, n_jets == VR_njets)
