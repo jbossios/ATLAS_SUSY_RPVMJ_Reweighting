@@ -146,11 +146,11 @@ def evaluate(config):
                 HT = kinem["jet_pt"].sum(1)
                 dEta12 = kinem["jet_eta"][:,0] - kinem["jet_eta"][:,1] # deta between leading jets
                 djmass = np.sqrt(kinem["jet_e"][:,:2].sum(1)**2 - kinem["jet_px"][:,:2].sum(1)**2 - kinem["jet_py"][:,:2].sum(1)**2 - kinem["jet_pz"][:,:2].sum(1)**2) # mass of two leading jets added together
-                n_jets = (kinem["jet_pt"] > 0).sum()
+                n_jets = (kinem["jet_pt"] > 0).sum(-1)
                 minAvg = np.array(tree["minAvgMass_jetdiff10_btagdiff10"]).flatten()
-
+                print(HT.shape, dEta12.shape, minAvg.shape, n_jets.shape, djmass.shape)
                 # prepare input
-                X = np.stack([HT,minAvg,dEta12,n_jets, djmass],-1)
+                X = np.stack([HT,minAvg,dEta12,n_jets,djmass],-1)
 
                 # cleanup
                 del kinem
