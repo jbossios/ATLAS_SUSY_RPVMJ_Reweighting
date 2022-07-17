@@ -75,16 +75,16 @@ def main():
 
     # store variables
     var = {
-        "HT" : [HT, r"H$_{\mathrm{T}}$ [GeV]", np.linspace(0,5000,100)],
-        "minAvg" : [minAvg, "minAvgMass [GeV]", np.linspace(0,5000,100)],
-        "dEta12" : [dEta12, "dEta12", np.linspace(0,4,20)],
-        "n_jets" : [n_jets, "nJets", np.linspace(0,20,21)],
-        "djmass" : [djmass, "djmass", np.linspace(0,100,20)]
+        "HT" : [HT, r"H$_{\mathrm{T}}$ [GeV]", np.linspace(1000,13000,100)],
+        "minAvg" : [minAvg, "minAvgMass [GeV]", np.linspace(500,3500,100)],
+        #"dEta12" : [dEta12, "dEta12", np.linspace(0,4,20)],
+        #"n_jets" : [n_jets, "nJets", np.linspace(0,20,21)],
+        "djmass" : [djmass, "djmass", np.linspace(0,15000,100)]
     }
 
     # load predictions
     pred_files = handleInput(ops.predFile)
-    
+    y_label = "Density of Events" if ops.density else "Number of Events"
     # loop over variables
     for key, [x, xlabel, bins] in var.items():
 
@@ -92,7 +92,7 @@ def main():
         for region in ["CR", "VR", "SR"]:
 
             # loop over trainings
-            bootstrap = []
+            bootstrap, hists = [], []
             for iP, pred_file in enumerate(pred_files):
 
                 print(f"Plotting bootstrap {iP}/{len(pred_files)}: {pred_file}")
@@ -109,7 +109,7 @@ def main():
                 rx.set_ylabel("Ratio")
                 rx.set_xlabel(xlabel)
                 rx.set_ylim(0,2)
-                ax.set_ylabel("Density of Events")
+                ax.set_ylabel(y_label)
                 ax.set_yscale("log")
                 c0, bin_edges, _ = ax.hist(high_x, bins = bins, weights = high_w, label = rf'High', color = colors[0], density=ops.density, histtype="step", lw=2)
                 c1, bin_edges, _ = ax.hist(low_x,  bins = bins, weights = low_w, label = rf'Low', color = colors[1], density=ops.density, histtype="step", lw=2)
@@ -123,58 +123,59 @@ def main():
                 # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
                 plt.savefig(os.path.join(ops.outDir,f'bootstrap{iP}_{region}_{key}.pdf'), bbox_inches="tight")
                 plt.close(fig)
-
-                bootstrap.append(c2)
-
-            # produce bootstrap plot
-            temp = np.stack(bootstrap,0)
-            iqr = scipy.stats.iqr(temp,0)
-            median = np.median(temp,0)
-            w_nom = median
-            w_up = median + 0.5*iqr
-            w_down = media - 0.5*iqr
-
-            # plot
-            fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
-            rx.set_ylabel("Ratio")
-            rx.set_xlabel(xlabel)
-            rx.set_ylim(0,2)
-            ax.set_ylabel("Density of Events")
-            ax.set_yscale("log")
-            c0, bin_edges, _ = ax.hist(high_x, bins = bins, weights = high_w, label = rf'High', color = colors[0], density=ops.density, histtype="step", lw=2)
-            c1, bin_edges, _ = ax.hist(low_x,  bins = bins, weights = low_w, label = rf'Low', color = colors[1], density=ops.density, histtype="step", lw=2)
+                
+                bootstrap.append(high_w*reweight)
+                hists.append(c2)
             
-            h_nom, bin_edges, _  = ax.hist(high_x, bins = bins, weights = w_nom, label = rf'Median Reweight High $\rightarrow$ Low', color = colors[2], density=ops.density, histtype="step", lw=2) 
-            h_up, bin_edges, _   = ax.hist(high_x, bins = bins, weights = w_up, label = rf'Up Reweight High $\rightarrow$ Low', color = colors[3], density=ops.density, histtype="step", lw=2) 
-            h_down, bin_edges, _ = ax.hist(high_x, bins = bins, weights = w_down, label = rf'Down Reweight High $\rightarrow$ Low', color = colors[4], density=ops.density, histtype="step", lw=2) 
+            # produce bootstrap plot
+            # temp = np.stack(bootstrap,0)
+            # iqr = scipy.stats.iqr(temp,0)
+            # median = np.median(temp,0)
+            # w_nom = median
+            # w_up = median + 0.5*iqr
+            # w_down = median - 0.5*iqr
 
-            rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'High $/$ Low', color = colors[0], lw=1)
-            rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_nom/(c1 + 10**-50), 'o-', label = rf'Median Reweighted High $/$ Low', color = colors[2], lw=1)
-            rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_up/(c1 + 10**-50), 'o-', label = rf'Up Reweighted High $/$ Low', color = colors[3], lw=1)
-            rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_down/(c1 + 10**-50), 'o-', label = rf'Down Reweighted High $/$ Low', color = colors[4], lw=1)
+            # # plot
+            # fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
+            # rx.set_ylabel("Ratio")
+            # rx.set_xlabel(xlabel)
+            # rx.set_ylim(0,2)
+            # ax.set_ylabel(y_label)
+            # ax.set_yscale("log")
+            # c0, bin_edges, _ = ax.hist(high_x, bins = bins, weights = high_w, label = rf'High', color = colors[0], density=ops.density, histtype="step", lw=2)
+            # c1, bin_edges, _ = ax.hist(low_x,  bins = bins, weights = low_w, label = rf'Low', color = colors[1], density=ops.density, histtype="step", lw=2)
+            
+            # h_nom, bin_edges, _  = ax.hist(high_x, bins = bins, weights = w_nom, label = rf'Median Reweight High $\rightarrow$ Low', color = colors[2], density=ops.density, histtype="step", lw=2) 
+            # h_up, bin_edges, _   = ax.hist(high_x, bins = bins, weights = w_up, label = rf'Up Reweight High $\rightarrow$ Low', color = colors[3], density=ops.density, histtype="step", lw=2) 
+            # h_down, bin_edges, _ = ax.hist(high_x, bins = bins, weights = w_down, label = rf'Down Reweight High $\rightarrow$ Low', color = colors[4], density=ops.density, histtype="step", lw=2) 
 
-            rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
-            ax.legend(title=rf"{region}", loc="best", prop={'size': 8}, framealpha=0.0)
-            # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
-            plt.savefig(os.path.join(ops.outDir,f'bootstrap{iP}_{region}_{key}_w_nom.pdf'), bbox_inches="tight")
-            plt.close(fig)
+            # rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'High $/$ Low', color = colors[0], lw=1)
+            # rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_nom/(c1 + 10**-50), 'o-', label = rf'Median Reweighted High $/$ Low', color = colors[2], lw=1)
+            # rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_up/(c1 + 10**-50), 'o-', label = rf'Up Reweighted High $/$ Low', color = colors[3], lw=1)
+            # rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_down/(c1 + 10**-50), 'o-', label = rf'Down Reweighted High $/$ Low', color = colors[4], lw=1)
 
-            # compare bootstraps
-            fig, ax = plt.subplots(1,  gridspec_kw={'height_ratios': (1,), 'hspace': 0.0})
-            ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, [1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls='--', color = 'black', lw=1)
-            for iH, hist in enumerate(bootstrap):
-                if iH == 0:
-                    ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, hist/(h_nom + 10**-50), '-', color = 'grey', lw=1, label="Single Bootstraped Estimate")
-                else:
-                    ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, hist/(h_nom + 10**-50), '-', color = 'grey', lw=1)
-            ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_up/(h_nom + 10**-50), '-', color = 'blue', lw=1, label=r"Vary All Event Weights Up/Down ($\pm$ IQR/2)")
-            ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_down/(h_nom + 10**-50), '-', color = 'blue', lw=1)
-            ax.set_ylim(0,2)
-            ax.set_ylabel("Bootstrap/Nominal Est.")
-            ax.set_xlabel(xlabel)
-            ax.legend(title=rf"Reweight High $\rightarrow$ Low", loc="best", prop={'size': 8}, framealpha=0.0)
-            plt.savefig(os.path.join(ops.outDir,f'bootstrap{iP}_{region}_{key}_div_non.pdf'), bbox_inches="tight")
-            plt.close(fig)
+            # rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
+            # ax.legend(title=rf"{region}", loc="best", prop={'size': 8}, framealpha=0.0)
+            # # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
+            # plt.savefig(os.path.join(ops.outDir,f'bootstrap{iP}_{region}_{key}_w_nom.pdf'), bbox_inches="tight")
+            # plt.close(fig)
+
+            # # compare bootstraps
+            # fig, ax = plt.subplots(1,  gridspec_kw={'height_ratios': (1,), 'hspace': 0.0})
+            # ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, [1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls='--', color = 'black', lw=1)
+            # for iH, hist in enumerate(hists):
+            #     if iH == 0:
+            #         ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, hist/(h_nom + 10**-50), '-', color = 'grey', lw=1, label="Single Bootstraped Estimate")
+            #     else:
+            #         ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, hist/(h_nom + 10**-50), '-', color = 'grey', lw=1)
+            # ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_up/(h_nom + 10**-50), '-', color = 'blue', lw=1, label=r"Vary All Event Weights Up/Down ($\pm$ IQR/2)")
+            # ax.plot((bin_edges[:-1] + bin_edges[1:]) / 2, h_down/(h_nom + 10**-50), '-', color = 'blue', lw=1)
+            # ax.set_ylim(0,2)
+            # ax.set_ylabel("Bootstrap/Nominal Est.")
+            # ax.set_xlabel(xlabel)
+            # ax.legend(title=rf"Reweight High $\rightarrow$ Low", loc="best", prop={'size': 8}, framealpha=0.0)
+            # plt.savefig(os.path.join(ops.outDir,f'bootstrap{iP}_{region}_{key}_div_non.pdf'), bbox_inches="tight")
+            # plt.close(fig)
 
 
 def options():
@@ -188,7 +189,7 @@ def options():
     return parser.parse_args()
 
 def handleInput(data):
-    if os.path.isfile(data) and ".npz" in os.path.basename(data):
+    if os.path.isfile(data) and ".h5" in os.path.basename(data):
         return [data]
     elif os.path.isfile(data) and ".txt" in os.path.basename(data):
         return sorted([line.strip() for line in open(data,"r")])

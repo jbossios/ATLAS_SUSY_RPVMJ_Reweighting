@@ -78,7 +78,7 @@ def main(config = None):
         normweight = np.array(f['EventVars/normweight'][mask])
         
         # concatenate
-        x = np.stack([HT,minAvg,dEta12,n_jets, djmass],-1)        
+        x = np.stack([HT,minAvg,djmass],-1) # dEta12,n_jets,
         print(f"Number of events: {x.shape[0]}")
 
     # control and validation regions
