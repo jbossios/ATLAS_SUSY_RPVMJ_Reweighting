@@ -165,7 +165,7 @@ def train(conf):
     X = (X - X_mean)/X_std
 
     # split data
-    X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(X, Y, np.arange(X.shape[0]), test_size=0.75, shuffle=True)
+    X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(X, Y, np.arange(X.shape[0]), test_size=0.25, shuffle=True)
     del X, Y, W
     gc.collect()
     
