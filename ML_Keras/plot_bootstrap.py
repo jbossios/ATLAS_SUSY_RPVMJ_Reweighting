@@ -75,8 +75,8 @@ def main():
 
     # store variables
     var = {
-        "HT" : [HT, r"H$_{\mathrm{T}}$ [GeV]", np.linspace(1000,13000,100)],
-        "minAvg" : [minAvg, "minAvgMass [GeV]", np.linspace(500,3500,100)],
+        "HT" : [HT, r"H$_{\mathrm{T}}$ [GeV]", np.linspace(cut_HT,13000,100)],
+        "minAvg" : [minAvg, "minAvgMass [GeV]", np.linspace(cut_minAvg,3500,100)],
         #"dEta12" : [dEta12, "dEta12", np.linspace(0,4,20)],
         #"n_jets" : [n_jets, "nJets", np.linspace(0,20,21)],
         "djmass" : [djmass, "djmass", np.linspace(0,15000,100)]
@@ -106,7 +106,7 @@ def main():
 
                 # Control Region
                 fig, [ax,rx] = plt.subplots(2,1,constrained_layout=False,sharey=False,sharex=True,gridspec_kw={"height_ratios": [3.5,1], 'hspace':0.0},)
-                rx.set_ylabel("Ratio")
+                rx.set_ylabel("Ratio\nTo Low")
                 rx.set_xlabel(xlabel)
                 rx.set_ylim(0,2)
                 ax.set_ylabel(y_label)

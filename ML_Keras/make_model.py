@@ -5,7 +5,7 @@ Date: Monday April 25, 2022
 
 import tensorflow as tf
 import numpy as np
-from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras.layers import Dense, Input, BatchNormalization
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 
@@ -59,7 +59,8 @@ def make_model(**kargs):
 
 def simple_model(**kargs):
     inputs = Input((kargs["input_dim"], ))
-    hidden_layer_1 = Dense(50, activation='relu')(inputs)
+    hidden_layer_0 = BatchNormalization()(inputs)
+    hidden_layer_1 = Dense(50, activation='relu')(hidden_layer_0) #inputs
     hidden_layer_2 = Dense(100, activation='relu')(hidden_layer_1)
     hidden_layer_3 = Dense(50, activation='relu')(hidden_layer_2)
     outputs = Dense(1, activation='linear')(hidden_layer_3) # sigmoid

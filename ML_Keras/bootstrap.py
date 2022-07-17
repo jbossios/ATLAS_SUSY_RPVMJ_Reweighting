@@ -158,12 +158,6 @@ def train(conf):
     W = np.concatenate([conf["CR_high_w"],conf["CR_low_w"]])
     Y = np.stack([Y,W],axis=-1)
 
-    # standardize
-    X_mean =  np.mean(X,0)
-    X_std =  np.std(X,0)
-    logfile.write(f"X mean, std: {X_mean}, {X_std}")
-    X = (X - X_mean)/X_std
-
     # split data
     X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(X, Y, np.arange(X.shape[0]), test_size=0.25, shuffle=True)
     del X, Y, W
@@ -200,10 +194,9 @@ def train(conf):
     plot_loss(history, checkpoint_dir)
 
     # predict in each region
-    # logfile.write(f"Prediction Region A with {conf['RegA_x'].shape[0]} events" + "\n")
-    CR_high_p = model.predict( (conf["CR_high_x"]-X_mean)/X_std, batch_size=10000).flatten()
-    VR_high_p = model.predict( (conf["VR_high_x"]-X_mean)/X_std, batch_size=10000).flatten()
-    SR_high_p = model.predict( (conf["SR_high_x"]-X_mean)/X_std, batch_size=10000).flatten()
+    CR_high_p = model.predict( conf["CR_high_x"], batch_size=10000).flatten()
+    VR_high_p = model.predict( conf["VR_high_x"], batch_size=10000).flatten()
+    SR_high_p = model.predict( conf["SR_high_x"], batch_size=10000).flatten()
     
     logfile.write(f"Saving to {outFileName}")
     # np.savez(outFileName, **outData)
