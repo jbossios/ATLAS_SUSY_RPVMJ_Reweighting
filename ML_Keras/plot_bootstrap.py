@@ -184,7 +184,6 @@ def options():
     parser.add_argument("-i",  "--inFile", help="Input file.", default=None)
     parser.add_argument("-p",  "--predFile", help="Prediction file.", default=None)
     parser.add_argument("-o",  "--outDir", help="Output directory", default="./")
-    parser.add_argument("-m",  "--model_weights", help="Model weights.", default=None)
     parser.add_argument("-d", "--density", help="Make plots density=True", action="store_true")
     return parser.parse_args()
 
