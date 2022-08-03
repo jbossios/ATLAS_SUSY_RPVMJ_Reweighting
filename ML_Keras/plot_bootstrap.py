@@ -39,6 +39,7 @@ def main():
 
     # cuts used
     cut_minAvgMass = 750
+    cut_deta = 1.4
     # grep ScoreCut /cvmfs/atlas.cern.ch/repo/sw/software/21.2/AnalysisBase/21.2.214/InstallArea/x86_64-centos7-gcc8-opt/data/BoostedJetTaggers/JetQGTaggerBDT/JetQGTaggerBDT*
     # 50%: (x<200)*(-0.000714*x-0.0121) + (x>=200)*-0.155, 80%: 0.05, 90%: 0.14
     cut_QGTaggerBDT = 0.14
@@ -55,16 +56,24 @@ def main():
                 # np.array(f['source']['pt'][:,0])
            ],-1)
         HT = np.array(f['EventVars']['HT'])
+        deta = np.array(f['EventVars']['deta'])
         minAvgMass = np.array(f['EventVars']['minAvgMass'])
         nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
         normweight = np.array(f['normweight']['normweight'])
         print(f"Number of events: {minAvgMass.shape[0]}")
 
     # Create cuts to Reweight A -> C
-    RegA = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-    RegC = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-    RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-    RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    if ops.SR2D:
+        SRcut = np.logical_and(minAvgMass >= cut_minAvgMass, deta < cut_deta)
+        RegA = np.logical_and(nQuarkJets  < cut_nQuarkJets, np.logical_not(SRcut))
+        RegC = np.logical_and(nQuarkJets >= cut_nQuarkJets, np.logical_not(SRcut))
+        RegB = np.logical_and(nQuarkJets  < cut_nQuarkJets, SRcut)
+        RegD = np.logical_and(nQuarkJets >= cut_nQuarkJets, SRcut)
+    else:
+        RegA = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
+        RegC = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+        RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
+        RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
     print(f"Number of events in A and C: {RegA.sum()}, {RegC.sum()}")
     print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
     del minAvgMass, nQuarkJets
@@ -241,12 +250,23 @@ def options():
     parser = argparse.ArgumentParser()
     # input files d
     parser.add_argument("-c",  "--conf", help="Configuration file. If provided, all other settings are overruled.", default=None)
-    parser.add_argument("-i",  "--inFile", help="Input file.", default=None)
+    parser.add_argument("-i",  "--inFile", help="Input file.", default="/eos/user/k/kbai/h5_forJavier/user.abadea.DijetsALL_minJetPt50_minNjets6_maxNjets8_v1.h5")
     parser.add_argument("-p",  "--predFile", help="Prediction file.", default=None)
     parser.add_argument("-o",  "--outDir", help="Output directory", default="./")
     parser.add_argument("-m",  "--model_weights", help="Model weights.", default=None)
-    parser.add_argument("-d", "--density", help="Make plots density=True", action="store_true")
-    return parser.parse_args()
+    parser.add_argument("-nd", "--no-density", help="Make plots density=False", action="store_true")
+    parser.add_argument("-f", "--folder", help="Read and store everything from this folder")
+    parser.add_argument("--SR2D", action="store_true", help="Define 2D SR")
+
+    args = parser.parse_args()
+    args.density = not args.no_density
+
+    if args.folder:
+        args.predFile = os.path.join(args.folder, 'training_*/*npz')
+        args.model_weights = os.path.join(args.folder, 'training_*')
+        args.outDir = args.folder
+
+    return args
 
 def handleInput(data):
     if os.path.isfile(data) and ".npz" in os.path.basename(data):

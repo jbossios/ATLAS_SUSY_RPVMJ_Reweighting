@@ -64,6 +64,7 @@ def main(config = None):
 
     # cuts used
     cut_minAvgMass = 750
+    cut_deta = 1.4
     # grep ScoreCut /cvmfs/atlas.cern.ch/repo/sw/software/21.2/AnalysisBase/21.2.214/InstallArea/x86_64-centos7-gcc8-opt/data/BoostedJetTaggers/JetQGTaggerBDT/JetQGTaggerBDT*
     # 50%: (x<200)*(-0.000714*x-0.0121) + (x>=200)*-0.155, 80%: 0.05, 90%: 0.14
     cut_QGTaggerBDT = 0.14
@@ -76,9 +77,24 @@ def main(config = None):
                 np.array(f['EventVars']['HT']),
                 np.array(f['EventVars']['deta']),
                 np.array(f['EventVars']['djmass']),
-                np.array(f['EventVars']['minAvgMass']),
                 np.array(f['source']['pt'][:,0])
            ],-1)
+        if not ops.no_minavg:
+            x = np.concatenate((x, np.array(f['EventVars']['minAvgMass'])),axis=-1)
+        if ops.more_vars:
+            x2 = np.stack([
+                    np.array(f['source']['pt'][:,1]),
+                    np.array(f['source']['pt'][:,2]),
+                    np.array(f['source']['pt'][:,3]),
+                    np.array(f['source']['pt'][:,4]),
+                    np.array(f['source']['pt'][:,5]),
+
+               ],-1)
+            print(x.shape, x2.shape)
+            x = np.concatenate([x,x2],axis=-1)
+            print(x.shape, x2.shape)
+
+        deta = np.array(f['EventVars']['deta'])
         minAvgMass = np.array(f['EventVars']['minAvgMass'])
         nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
         normweight = np.array(f['normweight']['normweight'])
@@ -86,13 +102,21 @@ def main(config = None):
         print(f"Number of events: {minAvgMass.shape[0]}")
 
     # Create cuts to Reweight A -> C
-    RegA = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-    RegC = np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-    RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-    RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    if ops.SR2D:
+        SRcut = np.logical_and(minAvgMass >= cut_minAvgMass, deta < cut_deta)
+        RegA = np.logical_and(nQuarkJets  < cut_nQuarkJets, np.logical_not(SRcut))
+        RegC = np.logical_and(nQuarkJets >= cut_nQuarkJets, np.logical_not(SRcut))
+        RegB = np.logical_and(nQuarkJets  < cut_nQuarkJets, SRcut)
+        RegD = np.logical_and(nQuarkJets >= cut_nQuarkJets, SRcut)
+    else:
+        RegA = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
+        RegC = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+        RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
+        RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+
     print(f"Number of events in A and C: {RegA.sum()}, {RegC.sum()}")
     print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
-    del minAvgMass, nQuarkJets
+    del minAvgMass, nQuarkJets, deta
     gc.collect()
 
     # get events per region
@@ -108,26 +132,9 @@ def main(config = None):
     del x, normweight
     gc.collect()
 
-    # save number of events
-    # RegA_nevents = RegA_x.shape[0]
-    # RegC_nevents = RegC_x.shape[0]
-
-    # concatenate
-    # X = np.concatenate([RegA_x,RegC_x])
-    # Y = np.concatenate([RegA_y,RegC_y])
-    # W = np.concatenate([RegA_weights,RegC_weights])
-    # Y = np.stack([Y,W],axis=-1)
-    # del RegA_x, RegA_weights, RegA_y, RegC_x, RegC_weights, RegC_y
-    # gc.collect()
-
-    # standardize
-    # X = (X - np.mean(X,0))/np.std(X,0)
-    # print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
-
     # prepare confs
     confs = []
     for iB in range(ops.num_bootstraps):
-        # confs.append({"iB":iB,"X":X,"Y":Y,"bootstrap_path":bootstrap_path,"RegA_nevents":RegA_nevents, "RegC_nevents":RegC_nevents})
         confs.append({
             "iB":iB,
             "bootstrap_path":bootstrap_path,
@@ -169,7 +176,7 @@ def train(conf):
     #logfile.write(f"X mean, std: {np.mean(X)}, {np.std(X)}")
 
     # split data
-    X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(X, Y, np.arange(X.shape[0]), test_size=0.75, shuffle=True)
+    X_train, X_test, Y_train, Y_test, idx_train, idx_test = train_test_split(X, Y, np.arange(X.shape[0]), test_size=0.25, shuffle=True)
     del X, Y, W
     gc.collect()
     
@@ -197,6 +204,8 @@ def train(conf):
         epochs=ops.nepochs,
         callbacks=callbacks,
         verbose=1,
+        shuffle=True,
+        class_weight={0:1., 1:0.25},
         validation_data=(X_test,Y_test)
     )
     
@@ -236,6 +245,9 @@ def options():
     parser.add_argument("-lr", "--learning_rate", help="Learning rate", default=1e-3, type=float)
     parser.add_argument("-s", "--seed", help="Seed for TensorFlow and NumPy", default=None, type=int)
     parser.add_argument("-j",  "--ncpu", help="Number of cores to use for multiprocessing. If not provided multiprocessing not done.", default=1, type=int)
+    parser.add_argument("--SR2D", action="store_true", help="Define 2D SR")
+    parser.add_argument("--more-vars", action="store_true", help="Include also all jet pts")
+    parser.add_argument("--no-minavg", action="store_true", help="Skip minavg from inputs")
     return parser.parse_args()
 
 if __name__ == "__main__":
