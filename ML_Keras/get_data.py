@@ -229,22 +229,6 @@ def get_full_weights_ABCD(file_name: str) -> Tuple[np.array, np.array, np.array,
     RegD_weights = normweight[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
     return RegA_weights, RegB_weights, RegC_weights, RegD_weights
 
-def get_full_data_forNorm(file_name: str) -> Tuple[np.array, np.array, np.array, np.array]:
-  # cuts used
-  with h5py.File(file_name, 'r') as f:
-    # pick up variables from file
-    minAvgMass = np.array(f['EventVars']['minAvgMass'])
-    nEvents = minAvgMass.shape[0]
-    x = np.stack([
-                np.array(f['EventVars']['HT']),
-                np.array(f['EventVars']['deta']),
-                np.array(f['EventVars']['djmass']),
-                np.array(f['EventVars']['minAvgMass']),
-                np.array(f['source']['pt'][:,0]),
-                #np.ones(nEvents, dtype=int)
-           ],-1)
-    return x
-
 def get_full_data(file_name: str) -> Tuple[np.array, np.array, np.array]:
   """
   Get full (actual) data from input H5 file (not sampling from pdfs!)
