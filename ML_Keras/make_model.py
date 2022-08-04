@@ -28,13 +28,13 @@ def weighted_binary_crossentropy(y_true, y_pred):
 
 def sqrtR_loss(y_true, y_pred):
     weights = tf.gather(y_true, [1], axis=1) # event weights
-    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
+    y_true  = tf.gather(y_true, [0], axis=1) # actual y_true for loss
     
     # exponentiate prediction to avoid requiring y_pred to be positive for sqrt (numerical trick)
     y_pred = K.exp(y_pred)
 
     # loss
-    loss = K.sum(K.sqrt(tf.boolean_mask(y_pred,y_true==0)) * tf.boolean_mask(weights,y_true==0))
+    loss  = K.sum(  K.sqrt(tf.boolean_mask(y_pred,y_true==0)) * tf.boolean_mask(weights,y_true==0))
     loss += K.sum(1/K.sqrt(tf.boolean_mask(y_pred,y_true==1)) * tf.boolean_mask(weights,y_true==1))
     return loss
     
