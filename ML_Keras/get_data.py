@@ -140,15 +140,11 @@ def get_data_ABCD(file_name: str, nepochs: int, batch_size: int = 10000, seed: i
         RegA_x = x[RegA]
         RegC_x = x[RegC]
       # combine with same statistics
-      nEventsA = -1 #min(RegA_y.shape[0],RegC_y.shape[0])
-      nEventsC = -1 #2*nEvents
-      X = np.concatenate([RegA_x[:nEventsA],RegC_x[:nEventsC]])
-      Y = np.concatenate([RegA_y[:nEventsA],RegC_y[:nEventsC]])
-      W = np.concatenate([RegA_weights[:nEventsA],RegC_weights[:nEventsC]])
+      X = np.concatenate([RegA_x,RegC_x])
+      Y = np.concatenate([RegA_y,RegC_y])
+      W = np.concatenate([RegA_weights,RegC_weights])
       Y = np.stack([Y,W],axis=-1)
       # standardize
-      #X = (X - np.mean(X,0))/np.std(X,0)
-      #print(f"X mean, std: {np.mean(X)}, {np.std(X)}")
       return X, Y
     # Get events
     X_12, Y_12 = get_events(RegA_12, RegC_12, 1)
@@ -215,11 +211,6 @@ def get_full_data_ABCD(file_name: str) -> Tuple[np.array, np.array, np.array, np
     RegC_x = x[np.logical_and(minAvgMass < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
     RegB_x = x[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)]
     RegD_x = x[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
-    # normalize for prediction
-    # RegA_x = (RegA_x-np.mean(RegA_x,0))/np.std(RegA_x,0)
-    # RegC_x = (RegC_x-np.mean(RegC_x,0))/np.std(RegC_x,0)
-    # RegB_x = (RegB_x-np.mean(RegB_x,0))/np.std(RegB_x,0)
-    # RegD_x = (RegD_x-np.mean(RegD_x,0))/np.std(RegD_x,0)
     return RegA_x, RegB_x, RegC_x, RegD_x
 
 def get_full_weights_ABCD(file_name: str) -> Tuple[np.array, np.array, np.array, np.array]:
@@ -237,6 +228,22 @@ def get_full_weights_ABCD(file_name: str) -> Tuple[np.array, np.array, np.array,
     RegB_weights = normweight[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets == 1)]
     RegD_weights = normweight[np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)]
     return RegA_weights, RegB_weights, RegC_weights, RegD_weights
+
+def get_full_data_forNorm(file_name: str) -> Tuple[np.array, np.array, np.array, np.array]:
+  # cuts used
+  with h5py.File(file_name, 'r') as f:
+    # pick up variables from file
+    minAvgMass = np.array(f['EventVars']['minAvgMass'])
+    nEvents = minAvgMass.shape[0]
+    x = np.stack([
+                np.array(f['EventVars']['HT']),
+                np.array(f['EventVars']['deta']),
+                np.array(f['EventVars']['djmass']),
+                np.array(f['EventVars']['minAvgMass']),
+                np.array(f['source']['pt'][:,0]),
+                #np.ones(nEvents, dtype=int)
+           ],-1)
+    return x
 
 def get_full_data(file_name: str) -> Tuple[np.array, np.array, np.array]:
   """

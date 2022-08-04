@@ -76,7 +76,6 @@ def main(config = None):
         sys.exit(1)
 
     # load samples for prediction
-    #RegA_x, RegB_x, RegC_x, RegD_x = get_data_ABCD(file_name=conf["file"], nepochs=1, batch_size=30000, seed=None, train=False, test_sample=None)
     RegA_x, RegB_x, RegC_x, RegD_x = get_full_data_ABCD(file_name=conf["file"])
     RegA_weights, RegB_weights, RegC_weights, RegD_weights = get_full_weights_ABCD(file_name=conf["file"])
     RegA_ht = RegA_x[:,0]
