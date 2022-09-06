@@ -1,6 +1,6 @@
 '''
-Authors: Anthony Badea, Jonathan Bossio
-Date: Tuesday June 7, 2022
+Authors: Anthony Badea, Kehang Bai, Javier Montejo Berlingen, Jonathan Bossio
+Date: Tuesday September 6, 2022
 Purpose: Bootstrap uncertainties
 '''
 
