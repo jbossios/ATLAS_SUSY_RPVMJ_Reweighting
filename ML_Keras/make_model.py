@@ -5,7 +5,7 @@ Date: Monday April 25, 2022
 
 import tensorflow as tf
 import numpy as np
-from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras.layers import Dense, Input, BatchNormalization
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 
@@ -28,13 +28,13 @@ def weighted_binary_crossentropy(y_true, y_pred):
 
 def sqrtR_loss(y_true, y_pred):
     weights = tf.gather(y_true, [1], axis=1) # event weights
-    y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
+    y_true  = tf.gather(y_true, [0], axis=1) # actual y_true for loss
     
     # exponentiate prediction to avoid requiring y_pred to be positive for sqrt (numerical trick)
     y_pred = K.exp(y_pred)
 
     # loss
-    loss = K.sum(K.sqrt(tf.boolean_mask(y_pred,y_true==0)) * tf.boolean_mask(weights,y_true==0))
+    loss  = K.sum(  K.sqrt(tf.boolean_mask(y_pred,y_true==0)) * tf.boolean_mask(weights,y_true==0))
     loss += K.sum(1/K.sqrt(tf.boolean_mask(y_pred,y_true==1)) * tf.boolean_mask(weights,y_true==1))
     return loss
     
@@ -60,6 +60,16 @@ def make_model(**kargs):
 def simple_model(**kargs):
     inputs = Input((kargs["input_dim"], ))
     hidden_layer_1 = Dense(50, activation='relu')(inputs)
+    hidden_layer_2 = Dense(100, activation='relu')(hidden_layer_1)
+    hidden_layer_3 = Dense(50, activation='relu')(hidden_layer_2)
+    outputs = Dense(1, activation='linear')(hidden_layer_3) # sigmoid
+    model = Model(inputs=inputs, outputs=outputs)
+    return model
+
+def simple_model_norm(**kargs):
+    inputs = Input((kargs["input_dim"], ))
+    hidden_layer_0 = BatchNormalization()(inputs)
+    hidden_layer_1 = Dense(50, activation='relu')(hidden_layer_0)
     hidden_layer_2 = Dense(100, activation='relu')(hidden_layer_1)
     hidden_layer_3 = Dense(50, activation='relu')(hidden_layer_2)
     outputs = Dense(1, activation='linear')(hidden_layer_3) # sigmoid

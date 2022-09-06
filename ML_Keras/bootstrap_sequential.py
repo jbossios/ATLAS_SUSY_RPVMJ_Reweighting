@@ -91,9 +91,7 @@ def main(config = None):
                     np.array(f['source']['pt'][:,5]),
 
                ],-1)
-            print(x.shape, x2.shape)
             x = np.concatenate([x,x2],axis=-1)
-            print(x.shape, x2.shape)
 
         deta = np.array(f['EventVars']['deta'])
         minAvgMass = np.array(f['EventVars']['minAvgMass'])
@@ -105,31 +103,43 @@ def main(config = None):
     # Create cuts to Reweight A -> C
     if ops.SR2D:
         SRcut = np.logical_and(minAvgMass >= cut_minAvgMass, deta < cut_deta)
-        RegA = np.logical_and(nQuarkJets  < cut_nQuarkJets, np.logical_not(SRcut))
-        RegC = np.logical_and(nQuarkJets >= cut_nQuarkJets, np.logical_not(SRcut))
-        RegB = np.logical_and(nQuarkJets  < cut_nQuarkJets, SRcut)
-        RegD = np.logical_and(nQuarkJets >= cut_nQuarkJets, SRcut)
     else:
-        RegA = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-        RegC = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-        RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-        RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+        SRcut = minAvgMass >= cut_minAvgMass
+    Reg0qincl = nQuarkJets == 0
+    Reg1qincl = nQuarkJets == 1
+    Reg1qCR = np.logical_and(nQuarkJets == 1, np.logical_not(SRcut))
+    Reg2qCR = np.logical_and(nQuarkJets >= 2, np.logical_not(SRcut))
+    Reg1qSR = np.logical_and(nQuarkJets == 1, SRcut)
+    Reg2qSR = np.logical_and(nQuarkJets >= 2, SRcut)
 
-    print(f"Number of events in A and C: {RegA.sum()}, {RegC.sum()}")
-    print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
+    print(f"Number of events in training regions: {Reg0qincl.sum(), Reg1qincl.sum(), Reg1qCR.sum(), Reg2qCR.sum()}")
+    print(f"Number of events in analysis regions: {Reg1qSR.sum(), Reg2qSR.sum()}")
     del minAvgMass, nQuarkJets, deta
     gc.collect()
 
     # get events per region
-    RegA_x = x[RegA]
-    RegA_weights = normweight[RegA]
-    RegA_y = np.zeros(RegA_weights.shape)
-    RegC_x = x[RegC]
-    RegC_weights = normweight[RegC]
-    RegC_y = np.ones(RegC_weights.shape)
+    Reg0qincl_x = x[Reg0qincl]
+    np.append(Reg0qincl_x,  np.zeros((Reg0qincl_x.shape[0],1) )) #add theta=0 to the x vars
+    Reg0qincl_weights = normweight[Reg0qincl]
+    Reg0qincl_y = np.zeros(Reg0qincl_weights.shape)
+    Reg1qincl_x = x[Reg1qincl]
+    np.append(Reg1qincl_x,  np.zeros((Reg1qincl_x.shape[0],1) )) #add theta=0 to the x vars
+    Reg1qincl_weights = normweight[Reg1qincl]
+    Reg1qincl_y = np.ones(Reg1qincl_weights.shape)
+    Reg1qCR_x = x[Reg1qCR]
+    np.append(Reg1qCR_x,  np.ones((Reg1qCR_x.shape[0],1) )) #add theta=1 to the x vars
+    Reg1qCR_weights = normweight[Reg1qCR]
+    Reg1qCR_y = np.zeros(Reg1qCR_weights.shape)
+    Reg2qCR_x = x[Reg2qCR]
+    np.append(Reg2qCR_x,  np.ones((Reg2qCR_x.shape[0],1) )) #add theta=1 to the x vars
+    Reg2qCR_weights = normweight[Reg2qCR]
+    Reg2qCR_y = np.ones(Reg2qCR_weights.shape)
+
     # just for evaluation get region B and D
-    RegB_x = x[RegB]
-    RegD_x = x[RegD]
+    Reg1qSR_x = x[Reg1qSR]
+    np.append(Reg1qSR_x,  np.ones((Reg1qSR_x.shape[0],1) )) #add theta=1 to the x vars
+    Reg2qSR_x = x[Reg2qSR]
+    np.append(Reg2qSR_x,  np.ones((Reg2qSR_x.shape[0],1) )) #add theta=1 to the x vars
     del x, normweight
     gc.collect()
 
@@ -139,10 +149,12 @@ def main(config = None):
         confs.append({
             "iB":iB,
             "bootstrap_path":bootstrap_path,
-            "RegA_x":RegA_x, "RegA_y":RegA_y, "RegA_weights":RegA_weights,
-            "RegB_x":RegB_x, 
-            "RegC_x":RegC_x, "RegC_y":RegC_y, "RegC_weights":RegC_weights,
-            "RegD_x":RegD_x
+            "Reg0qincl_x":Reg0qincl_x, "Reg0qincl_y":Reg0qincl_y, "Reg0qincl_weights":Reg0qincl_weights,
+            "Reg1qincl_x":Reg1qincl_x, "Reg1qincl_y":Reg1qincl_y, "Reg1qincl_weights":Reg1qincl_weights,
+            "Reg1qCR_x":Reg1qCR_x, "Reg1qCR_y":Reg1qCR_y, "Reg1qCR_weights":Reg1qCR_weights,
+            "Reg2qCR_x":Reg2qCR_x, "Reg2qCR_y":Reg2qCR_y, "Reg2qCR_weights":Reg2qCR_weights,
+            "Reg1qSR_x":Reg1qSR_x, 
+            "Reg2qSR_x":Reg2qSR_x
         })
 
     # launch jobs
@@ -167,9 +179,9 @@ def train(conf):
     logfile = open(os.path.join(checkpoint_dir,"log.txt"),"w")
 
     # concatenate
-    X = np.concatenate([conf["RegA_x"],conf["RegC_x"]])
-    Y = np.concatenate([conf["RegA_y"],conf["RegC_y"]])
-    W = np.concatenate([conf["RegA_weights"],conf["RegC_weights"]])
+    X = np.concatenate([conf["Reg0qincl_x"],conf["Reg1qincl_x"],conf["Reg1qCR_x"],conf["Reg2qCR_x"]])
+    Y = np.concatenate([conf["Reg0qincl_y"],conf["Reg1qincl_y"],conf["Reg1qCR_y"],conf["Reg2qCR_y"]])
+    W = np.concatenate([conf["Reg0qincl_weights"],conf["Reg1qincl_weights"],conf["Reg1qCR_weights"],conf["Reg2qCR_weights"]])
     Y = np.stack([Y,W],axis=-1)
 
     # standardize
@@ -214,22 +226,28 @@ def train(conf):
     plot_loss(history, checkpoint_dir)
 
     # predict in each region
-    logfile.write(f"Prediction Region A with {conf['RegA_x'].shape[0]} events" + "\n")
-    RegA_p = model.predict(conf["RegA_x"],batch_size=10000).flatten()
-    logfile.write(f"Prediction Region B with {conf['RegB_x'].shape[0]} events" + "\n")
-    RegB_p = model.predict(conf["RegB_x"],batch_size=10000).flatten()
-    logfile.write(f"Prediction Region C with {conf['RegC_x'].shape[0]} events" + "\n")
-    RegC_p = model.predict(conf["RegC_x"],batch_size=10000).flatten()
-    logfile.write(f"Prediction Region D with {conf['RegD_x'].shape[0]} events" + "\n")
-    RegD_p = model.predict(conf["RegD_x"],batch_size=10000).flatten()
+    logfile.write(f"Prediction Region 0qincl with {conf['Reg0qincl_x'].shape[0]} events" + "\n")
+    Reg0qincl_p = model.predict(conf["Reg0qincl_x"],batch_size=10000).flatten()
+    logfile.write(f"Prediction Region 1qincl with {conf['Reg1qincl_x'].shape[0]} events" + "\n")
+    Reg1qincl_p = model.predict(conf["Reg1qincl_x"],batch_size=10000).flatten()
+    logfile.write(f"Prediction Region 1qCR with {conf['Reg1qCR_x'].shape[0]} events" + "\n")
+    Reg1qCR_p = model.predict(conf["Reg1qCR_x"],batch_size=10000).flatten()
+    logfile.write(f"Prediction Region 2qCR with {conf['Reg2qCR_x'].shape[0]} events" + "\n")
+    Reg2qCR_p = model.predict(conf["Reg2qCR_x"],batch_size=10000).flatten()
+    logfile.write(f"Prediction Region 1qSR with {conf['Reg1qSR_x'].shape[0]} events" + "\n")
+    Reg1qSR_p = model.predict(conf["Reg1qSR_x"],batch_size=10000).flatten()
+    logfile.write(f"Prediction Region 2qSR with {conf['Reg2qSR_x'].shape[0]} events" + "\n")
+    Reg2qSR_p = model.predict(conf["Reg2qSR_x"],batch_size=10000).flatten()
     np.savez(
         os.path.join(checkpoint_dir,"predictions.npz"),
         **{
         "idx_train": idx_train, "idx_test": idx_test,
-        "RegA_p": RegA_p,
-        "RegB_p": RegB_p,
-        "RegC_p": RegC_p,
-        "RegD_p": RegD_p})
+        "Reg0qincl_p": Reg0qincl_p,
+        "Reg1qincl_p": Reg1qincl_p,
+        "Reg1qCR_p": Reg1qCR_p,
+        "Reg2qCR_p": Reg2qCR_p,
+        "Reg1qSR_p": Reg1qSR_p,
+        "Reg2qSR_p": Reg2qSR_p})
 
     # close
     logfile.write("Done closing log file")
