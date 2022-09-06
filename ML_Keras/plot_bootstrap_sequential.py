@@ -1,5 +1,5 @@
 '''
-Authors: Anthony Badea, Jonathan Bossio
+Authors: Anthony Badea, Kehang Bai, Javier Montejo Berlingen, Jonathan Bossio
 Date: Monday April 25, 2022
 '''
 
@@ -12,6 +12,7 @@ import h5py
 import numpy as np
 import scipy.stats
 import matplotlib.pyplot as plt
+from scipy.special import kl_div
 import argparse
 import os
 import gc
@@ -136,6 +137,7 @@ def main():
             hists["Reg1qCR"].append(h)
             h = plot_individual(var, ops, iP, "Reg1qSR", "Reg2qSR", Reg1qSR_x, Reg2qSR_x, Reg1qSR_weights, Reg2qSR_weights, Reg1qSR_reweighted)
             hists["Reg1qSR"].append(h)
+            print("store histogram")
 
         # concatenate and take median +- 1/2 * IQR
         bootstrap_weights = {}
@@ -193,13 +195,16 @@ def plot_ensemble(var, ops, source_name, target_name, source_var, target_var, so
     c2, bin_edges, _ = ax.hist(source_var, bins = bins, weights = bootstrap_weights[source_name]["w_nom"],  label = rf'Median '+get_label(source_name, target_name), color = colors[2], density=ops.density, histtype="step", lw=2) 
     c3, bin_edges, _ = ax.hist(source_var, bins = bins, weights = bootstrap_weights[source_name]["w_up"],   label = rf'Up '+get_label(source_name, target_name), color = colors[3], density=ops.density, histtype="step", lw=2) 
     c4, bin_edges, _ = ax.hist(source_var, bins = bins, weights = bootstrap_weights[source_name]["w_down"], label = rf'Down '+get_label(source_name, target_name), color = colors[4], density=ops.density, histtype="step", lw=2) 
-    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'{source_name} $/$ {target_name}', color = colors[0], lw=1)
-
+    rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c0/(c1 + 10**-50), 'o-', label = rf'{source_name} $/$ {target_name}', color = colors[0], lw=1, ms=3)
+    kl_div_val = get_kl_div(c1, c2)
+    ax.set_title(f'Median KL div = {kl_div_val:.2E}'
+)
     if ops.band:
         rx.fill_between((bin_edges[:-1] + bin_edges[1:]) / 2, c4/(c1 + 10**-50), c3/(c1 + 10**-50), alpha=0.2, edgecolor = colors[3], facecolor = colors[3], lw=1, label = 'Interquartile')
     else:
-        rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c3/(c1 + 10**-50), 'o-', label = rf'Up Reweighted {source_name} $/$ {target_name}', color = colors[3], lw=1)
-        rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c4/(c1 + 10**-50), 'o-', label = rf'Down Reweighted {source_name} $/$ {target_name}', color = colors[4], lw=1)
+        rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c2/(c1 + 10**-50), 'o-', label = rf'Median Reweighted {source_name} $/$ {target_name}', color = colors[2], lw=1, ms=3)
+        rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c3/(c1 + 10**-50), 'o-', label = rf'Up Reweighted {source_name} $/$ {target_name}', color = colors[3], lw=1, ms=3)
+        rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2, c4/(c1 + 10**-50), 'o-', label = rf'Down Reweighted {source_name} $/$ {target_name}', color = colors[4], lw=1, ms=3)
     rx.plot((bin_edges[:-1] + bin_edges[1:]) / 2,[1] * len((bin_edges[:-1] + bin_edges[1:]) / 2), ls="--",color="black",alpha=0.8)
     ax.legend(title=get_title(source_name, ops), loc="best", prop={'size': 8}, framealpha=0.0)
     # rx.legend(title="", loc="best", prop={'size': 7}, framealpha=0.0)
@@ -222,6 +227,10 @@ def plot_ensemble(var, ops, source_name, target_name, source_var, target_var, so
     ax.legend(title=rf"Reweight {source_name} $\rightarrow$ {target_name}", loc="best", prop={'size': 8}, framealpha=0.0)
     plt.savefig(os.path.join(ops.outDir,f'reweight{source_name}to{target_name}_bootstrap_div_nominal.pdf'), bbox_inches="tight")
     plt.close(fig)
+
+def get_kl_div(p,q):
+    div_arr = np.where(np.logical_and(p>0,q>0),kl_div(p,q),0)
+    return np.sum(div_arr)
 
 def get_axis_label(var):
     if var == 'HT':
@@ -269,11 +278,11 @@ def get_title(source, ops):
     elif source == "Reg1qCR":
         label = r'minAvgMass $<$ 750 GeV'
         if ops.SR2D:
-            label = r'minAvgMass $<$ 750 GeV || $\Delta\eta > 1.4$'
+            label = r'minAvgMass $<$ 750 GeV $||$ $\Delta\eta > 1.4$'
     elif source == "Reg1qSR":
         label = r'minAvgMass $\geq$ 750 GeV'
         if ops.SR2D:
-            label = r'minAvgMass $\geq$ 750 GeV && $\Delta\eta < 1.4$'
+            label = r'minAvgMass $\geq$ 750 GeV \& $\Delta\eta < 1.4$'
     return label
 
 def get_binning(var, ops):
