@@ -1,4 +1,4 @@
-'''
+''''
 Authors: Anthony Badea, Kehang Bai, Javier Montejo Berlingen, Jonathan Bossio
 Date: Tuesday September 6, 2022
 Purpose: Bootstrap uncertainties
@@ -62,76 +62,100 @@ def main(config = None):
         except:  # deprecated in newer tf versions
             tf.keras.utils.set_random_seed(ops.seed)
 
-    # cuts used
-    cut_minAvgMass = 750
-    cut_deta = 1.4
-    # grep ScoreCut /cvmfs/atlas.cern.ch/repo/sw/software/21.2/AnalysisBase/21.2.214/InstallArea/x86_64-centos7-gcc8-opt/data/BoostedJetTaggers/JetQGTaggerBDT/JetQGTaggerBDT*
-    # 50%: (x<200)*(-0.000714*x-0.0121) + (x>=200)*-0.155, 80%: 0.05, 90%: 0.14
-    cut_QGTaggerBDT = 0.14
-    cut_nQuarkJets = 2
+    # # cuts used
+    # cut_minAvgMass = 750
+    # cut_deta = 1.4
+    # # grep ScoreCut /cvmfs/atlas.cern.ch/repo/sw/software/21.2/AnalysisBase/21.2.214/InstallArea/x86_64-centos7-gcc8-opt/data/BoostedJetTaggers/JetQGTaggerBDT/JetQGTaggerBDT*
+    # # 50%: (x<200)*(-0.000714*x-0.0121) + (x>=200)*-0.155, 80%: 0.05, 90%: 0.14
+    # cut_QGTaggerBDT = 0.14
+    # cut_nQuarkJets = 2
     
-    # load this once
-    with h5py.File(ops.inFile,"r") as f:
-        # pick up variables from file
-        tostack = [
-                np.array(f['EventVars']['HT']),
-                np.array(f['EventVars']['deta']),
-                np.array(f['EventVars']['djmass']),
-                np.array(f['source']['pt'][:,0])
-           ]
-        if not ops.no_minavg:
-            tostack.append( np.array(f['EventVars']['minAvgMass']) )
-        x = np.stack(tostack, -1)
-        if ops.more_vars:
-            x2 = np.stack([
-                    np.array(f['source']['pt'][:,1]),
-                    np.array(f['source']['pt'][:,2]),
-                    np.array(f['source']['pt'][:,3]),
-                    np.array(f['source']['pt'][:,4]),
-                    np.array(f['source']['pt'][:,5]),
+    # # load this once
+    # with h5py.File(ops.inFile,"r") as f:
+    #     # pick up variables from file
+    #     tostack = [
+    #             np.array(f['EventVars']['HT']),
+    #             np.array(f['EventVars']['deta']),
+    #             np.array(f['EventVars']['djmass']),
+    #             np.array(f['source']['pt'][:,0])
+    #        ]
+    #     if not ops.no_minavg:
+    #         tostack.append( np.array(f['EventVars']['minAvgMass']) )
+    #     x = np.stack(tostack, -1)
+    #     if ops.more_vars:
+    #         x2 = np.stack([
+    #                 np.array(f['source']['pt'][:,1]),
+    #                 np.array(f['source']['pt'][:,2]),
+    #                 np.array(f['source']['pt'][:,3]),
+    #                 np.array(f['source']['pt'][:,4]),
+    #                 np.array(f['source']['pt'][:,5]),
 
-               ],-1)
-            print(x.shape, x2.shape)
-            x = np.concatenate([x,x2],axis=-1)
-            print(x.shape, x2.shape)
+    #            ],-1)
+    #         print(x.shape, x2.shape)
+    #         x = np.concatenate([x,x2],axis=-1)
+    #         print(x.shape, x2.shape)
 
-        deta = np.array(f['EventVars']['deta'])
-        minAvgMass = np.array(f['EventVars']['minAvgMass'])
-        nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
-        normweight = np.array(f['normweight']['normweight'])
-        # normweight = np.sqrt(normweight)
-        print(f"Number of events: {minAvgMass.shape[0]}")
+    #     deta = np.array(f['EventVars']['deta'])
+    #     minAvgMass = np.array(f['EventVars']['minAvgMass'])
+    #     nQuarkJets = (np.array(f['source']['QGTaggerBDT']) > cut_QGTaggerBDT).sum(1)
+    #     normweight = np.array(f['normweight']['normweight'])
+    #     # normweight = np.sqrt(normweight)
+    #     print(f"Number of events: {minAvgMass.shape[0]}")
 
-    # Create cuts to Reweight A -> C
-    if ops.SR2D:
-        SRcut = np.logical_and(minAvgMass >= cut_minAvgMass, deta < cut_deta)
-        RegA = np.logical_and(nQuarkJets  < cut_nQuarkJets, np.logical_not(SRcut))
-        RegC = np.logical_and(nQuarkJets >= cut_nQuarkJets, np.logical_not(SRcut))
-        RegB = np.logical_and(nQuarkJets  < cut_nQuarkJets, SRcut)
-        RegD = np.logical_and(nQuarkJets >= cut_nQuarkJets, SRcut)
-    else:
-        RegA = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-        RegC = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
-        RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
-        RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    # # Create cuts to Reweight A -> C
+    # if ops.SR2D:
+    #     SRcut = np.logical_and(minAvgMass >= cut_minAvgMass, deta < cut_deta)
+    #     RegA = np.logical_and(nQuarkJets  < cut_nQuarkJets, np.logical_not(SRcut))
+    #     RegC = np.logical_and(nQuarkJets >= cut_nQuarkJets, np.logical_not(SRcut))
+    #     RegB = np.logical_and(nQuarkJets  < cut_nQuarkJets, SRcut)
+    #     RegD = np.logical_and(nQuarkJets >= cut_nQuarkJets, SRcut)
+    # else:
+    #     RegA = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
+    #     RegC = np.logical_and(minAvgMass  < cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
+    #     RegB = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets < cut_nQuarkJets)
+    #     RegD = np.logical_and(minAvgMass >= cut_minAvgMass, nQuarkJets >= cut_nQuarkJets)
 
-    print(f"Number of events in A and C: {RegA.sum()}, {RegC.sum()}")
-    print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
-    del minAvgMass, nQuarkJets, deta
-    gc.collect()
+    # print(f"Number of events in A and C: {RegA.sum()}, {RegC.sum()}")
+    # print(f"Number of events in B and D: {RegB.sum()}, {RegD.sum()}")
+    # del minAvgMass, nQuarkJets, deta
+    # gc.collect()
 
-    # get events per region
-    RegA_x = x[RegA]
-    RegA_weights = normweight[RegA]
-    RegA_y = np.zeros(RegA_weights.shape)
-    RegC_x = x[RegC]
-    RegC_weights = normweight[RegC]
-    RegC_y = np.ones(RegC_weights.shape)
-    # just for evaluation get region B and D
-    RegB_x = x[RegB]
-    RegD_x = x[RegD]
-    del x, normweight
-    gc.collect()
+    # # get events per region
+    # RegA_x = x[RegA]
+    # RegA_weights = normweight[RegA]
+    # RegA_y = np.zeros(RegA_weights.shape)
+    # RegC_x = x[RegC]
+    # RegC_weights = normweight[RegC]
+    # RegC_y = np.ones(RegC_weights.shape)
+    # # just for evaluation get region B and D
+    # RegB_x = x[RegB]
+    # RegD_x = x[RegD]
+    # del x, normweight
+    # gc.collect()
+
+
+    # pick up variables and make region
+    with h5py.File(ops.dataFile, "r") as hf:
+        dm = np.array(hf['EventVars/minAvgMass_jetdiff10_btagdiff10'])
+        dqg = np.array(hf['EventVars/n_jet_JetQGTagger_QuarkJetTag'])
+        ddeta12 = np.array(hf['EventVars/deta12'])
+
+    # make signal region
+    dA = (dm<1250) * (dqg < 2) * (ddeta12 < 1.4)
+    dB = (dm>=1250) * (dqg < 2) * (ddeta12 < 1.4)
+    dC = (dm<1250) * (dqg >= 2) * (ddeta12 < 1.4)
+    dD = (dm>=1250) * (dqg >= 2) * (ddeta12 < 1.4)
+
+    # pick up masses
+    with h5py.File(ops.massFile, "r") as hf:
+        m = np.array(hf['trees_SRRPV_/mass_pred'])
+        w = np.array(hf['trees_SRRPV_/normweight'])
+
+    # create region training data
+    RegA_x, RegA_y, RegA_weights = m[dA], np.zeros(m[dA].shape[0]), w[dA]
+    RegB_x,         RegB_weights = m[dB],                           w[dB]
+    RegC_x, RegC_y, RegC_weights = m[dC], np.ones(m[dC].shape[0]),  w[dC]
+    RegD_x,         RegD_weights = m[dD],                           w[dD]
 
     # prepare confs
     confs = []
@@ -206,7 +230,6 @@ def train(conf):
         callbacks=callbacks,
         verbose=1,
         shuffle=True,
-        class_weight={0:1., 1:0.25},
         validation_data=(X_test,Y_test)
     )
     
@@ -237,6 +260,10 @@ def train(conf):
 
 def options():
     parser = argparse.ArgumentParser()
+
+    parser.add_argument("--dataFile", help="Data file.", default=None)
+    parser.add_argument("--massFile", help="Mass file.", default=None)
+
     parser.add_argument("-i", "--inFile", help="Input file.", default=None)
     parser.add_argument("-o", "--outDir", help="Output directory for plots", default="./")
     parser.add_argument("-nb", "--num_bootstraps", help="Number of trainings to perform for bootstrap.", default=2, type=int)
