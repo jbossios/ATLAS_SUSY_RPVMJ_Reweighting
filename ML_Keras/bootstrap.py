@@ -133,25 +133,31 @@ def main(config = None):
     # del x, normweight
     # gc.collect()
 
-
-    # pick up variables and make region
-    with h5py.File(ops.dataFile, "r") as hf:
-        dm = np.array(hf['EventVars/minAvgMass_jetdiff10_btagdiff10'])
-        dqg = np.array(hf['EventVars/n_jet_JetQGTagger_QuarkJetTag'])
-        ddeta12 = np.array(hf['EventVars/deta12'])
-
-    # make signal region
-    dA = (dm<1250) * (dqg < 2) * (ddeta12 < 1.4)
-    dB = (dm>=1250) * (dqg < 2) * (ddeta12 < 1.4)
-    dC = (dm<1250) * (dqg >= 2) * (ddeta12 < 1.4)
-    dD = (dm>=1250) * (dqg >= 2) * (ddeta12 < 1.4)
-
-    # pick up masses
+    # pick up masses and check for nan's
     with h5py.File(ops.massFile, "r") as hf:
         try:
             m, w = np.array(hf['gluino_mass_pred']), np.array(hf['normweight'])
         except:
             m, w = np.array(hf['trees_SRRPV_/mass_pred']), np.array(hf['trees_SRRPV_/normweight'])
+    
+    mask = np.prod(m==m,-1).astype(bool)
+    m, w = m[mask], w[mask]
+    print(f"Invalid events {(~mask).sum()}/{mask.shape[0]}")
+    
+    # pick up variables and make region
+    with h5py.File(ops.dataFile, "r") as hf:
+        dm = np.array(hf['EventVars/minAvgMass_jetdiff10_btagdiff10'])[mask]
+        dqg = np.array(hf['EventVars/n_jet_JetQGTagger_QuarkJetTag'])[mask]
+        ddeta12 = np.array(hf['EventVars/deta12'])[mask]
+
+    print(m.shape, w.shape, dm.shape, dqg.shape, ddeta12.shape)
+
+    # make signal region
+    mavg, qg, deta12 = 1250, 2, 1.4
+    dA = (dm<mavg) * (dqg < qg) * (ddeta12 < deta12)
+    dB = (dm>=mavg) * (dqg < qg) * (ddeta12 < deta12)
+    dC = (dm<mavg) * (dqg >= qg) * (ddeta12 < deta12)
+    dD = (dm>=mavg) * (dqg >= qg) * (ddeta12 < deta12)
 
     # create region training data
     RegA_x, RegA_y, RegA_weights = m[dA], np.zeros(m[dA].shape[0]), w[dA]
@@ -239,22 +245,37 @@ def train(conf):
     plot_loss(history, checkpoint_dir)
 
     # predict in each region
-    logfile.write(f"Prediction Region A with {conf['RegA_x'].shape[0]} events" + "\n")
-    RegA_p = model.predict(conf["RegA_x"],batch_size=10000).flatten()
-    logfile.write(f"Prediction Region B with {conf['RegB_x'].shape[0]} events" + "\n")
-    RegB_p = model.predict(conf["RegB_x"],batch_size=10000).flatten()
-    logfile.write(f"Prediction Region C with {conf['RegC_x'].shape[0]} events" + "\n")
-    RegC_p = model.predict(conf["RegC_x"],batch_size=10000).flatten()
-    logfile.write(f"Prediction Region D with {conf['RegD_x'].shape[0]} events" + "\n")
-    RegD_p = model.predict(conf["RegD_x"],batch_size=10000).flatten()
-    np.savez(
-        os.path.join(checkpoint_dir,"predictions.npz"),
-        **{
-        "idx_train": idx_train, "idx_test": idx_test,
-        "RegA_p": RegA_p,
-        "RegB_p": RegB_p,
-        "RegC_p": RegC_p,
-        "RegD_p": RegD_p})
+    # logfile.write(f"Prediction Region A with {conf['RegA_x'].shape[0]} events" + "\n")
+    # RegA_p = model.predict(conf["RegA_x"],batch_size=10000).flatten()
+    # logfile.write(f"Prediction Region B with {conf['RegB_x'].shape[0]} events" + "\n")
+    # RegB_p = model.predict(conf["RegB_x"],batch_size=10000).flatten()
+    # logfile.write(f"Prediction Region C with {conf['RegC_x'].shape[0]} events" + "\n")
+    # RegC_p = model.predict(conf["RegC_x"],batch_size=10000).flatten()
+    # logfile.write(f"Prediction Region D with {conf['RegD_x'].shape[0]} events" + "\n")
+    # RegD_p = model.predict(conf["RegD_x"],batch_size=10000).flatten()
+    # np.savez(
+    #     os.path.join(checkpoint_dir,"predictions.npz"),
+    #     **{
+    #     "idx_train": idx_train, "idx_test": idx_test,
+    #     "RegA_p": RegA_p,
+    #     "RegB_p": RegB_p,
+    #     "RegC_p": RegC_p,
+    #     "RegD_p": RegD_p})
+    
+    # pick up masses and check for nan's
+    with h5py.File(ops.massFile, "r") as hf:
+        try:
+            m = np.array(hf['gluino_mass_pred'])
+        except:
+            m = np.array(hf['trees_SRRPV_/mass_pred'])
+    mask = np.prod(m==m,-1).astype(bool)
+    m = m[mask]
+    p = model.predict(m,batch_size=10000).flatten()
+
+    # save
+    outFileName = os.path.join(checkpoint_dir,"predictions.h5")
+    with h5py.File(outFileName, 'w') as hf:
+        hf.create_dataset("p", data=p)
 
     # close
     logfile.write("Done closing log file")
