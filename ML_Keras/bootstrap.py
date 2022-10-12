@@ -148,8 +148,10 @@ def main(config = None):
 
     # pick up masses
     with h5py.File(ops.massFile, "r") as hf:
-        m = np.array(hf['trees_SRRPV_/mass_pred'])
-        w = np.array(hf['trees_SRRPV_/normweight'])
+        try:
+            m, w = np.array(hf['gluino_mass_pred']), np.array(hf['normweight'])
+        except:
+            m, w = np.array(hf['trees_SRRPV_/mass_pred']), np.array(hf['trees_SRRPV_/normweight'])
 
     # create region training data
     RegA_x, RegA_y, RegA_weights = m[dA], np.zeros(m[dA].shape[0]), w[dA]
